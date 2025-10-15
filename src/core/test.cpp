@@ -1,4 +1,6 @@
+#include "app.hpp"
 #include "memory.hpp"
+#include "time.hpp"
 #include "debug.hpp"
 
 bool testMemory()
@@ -106,10 +108,83 @@ bool testMemory()
     return true;
 }
 
-void testCore()
+void testTime(App* pApp)
 {
+    ASSERT(pApp);
+
+    // Testing timer initialization
+    {
+        Timer t = createTimer(pApp);
+
+        ASSERT(t.mFreq > 0);
+    }
+
+    // Testing start and end
+    {
+        Timer t = createTimer(pApp);
+        startTimer(&t);
+        ASSERT(t.mStartTick != TIMER_INVALID);
+        ASSERT(t.mEndTick == TIMER_INVALID);
+
+        waitBusyMS(pApp, 10.0);
+        endTimer(&t);
+
+        ASSERT(t.mStartTick != TIMER_INVALID);
+        ASSERT(t.mEndTick != TIMER_INVALID);
+        ASSERT(t.mEndTick > t.mStartTick);
+    }
+    
+    // Testing time measurement
+    {
+        Timer t = createTimer(pApp);
+
+        startTimer(&t);
+        waitBusyMS(pApp, 25.0);
+        endTimer(&t);
+
+        double s    = getS(&t);
+        double ms   = getMS(&t);
+        double ns   = getNS(&t);
+
+        ASSERT(s > 0.0);
+        ASSERT(ms > 0.0);
+        ASSERT(ns > 0.0);
+
+        // Testing consistency accross units
+        ASSERT(ABS(ms - s * 1000.0) < 0.5);
+        ASSERT(ABS(ms * 1e6 - ns)   < 1e7); // ~10ms tolerance
+
+        // Testing duration (within a range)
+        ASSERT(ms >= 20.0);
+        ASSERT(ms <= 30.0);
+    }
+    
+    // Testing multiple measurements
+    {
+        Timer t = createTimer(pApp);
+
+        startTimer(&t);
+        waitBusyMS(pApp, 5.0);
+        endTimer(&t);
+        double first = getMS(&t);
+
+        startTimer(&t);
+        waitBusyMS(pApp, 10.0);
+        endTimer(&t);
+        double second = getMS(&t);
+
+        ASSERT(second > first);
+    }
+}
+
+void testCore(App* pApp)
+{
+    ASSERT(pApp);
     LOG("[TEST] Testing memory...");
     testMemory();
+
+    LOG("[TEST] Testing time...");
+    testTime(pApp);
 
     LOG("[TEST] All core tests passed.");
 }

@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "debug.hpp"
+#include "time.hpp"
 
 // TODO_DW: MULTIPLATFORM
 
@@ -73,6 +74,9 @@ void initApp(uint32 w, uint32 h, const char* title, App* pApp)
         window.mWinInstance = windowClass.hInstance;
         pApp->mWindow = window;
     }
+
+    // Initializing time
+    initTime(pApp);
 
     pApp->mRunning = true;
 

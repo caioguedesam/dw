@@ -12,6 +12,7 @@ enum AppLoadRequest : uint32
 
 struct App
 {
+    // Window
     struct Window
     {
         // TODO_DW: MULTIPLATFORM
@@ -24,6 +25,10 @@ struct App
 
     Window  mWindow = {};
     uint32  mLoadRequests = LOAD_REQUEST_NONE;
+
+    // Time
+    uint64 mTicksPerSecond = 0;
+    
     bool    mRunning = false;
 };
 
