@@ -36,4 +36,5 @@ void    removeLoadRequest(App* pApp, uint32 loadRequest);
 // TODO_DW: MULTIPLATFORM
 #define BEGIN_MAIN
 #define END_MAIN return 0;
-#define DW_MAIN() int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrev, PWSTR pCmdLine, int nCmdShow)
+#define DW_MAIN() int main() { return wWinMain(GetModuleHandle(NULL), NULL, GetCommandLineW(), SW_SHOWNORMAL); } \
+    int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrev, PWSTR pCmdLine, int nCmdShow)

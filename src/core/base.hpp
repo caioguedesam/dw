@@ -55,12 +55,12 @@ typedef unsigned char byte;
 
 #define IS_POW2(V) (((V) & ((V) - 1)) == 0)
 #define ALIGN_TO(SIZE, BOUND) (((SIZE) + (BOUND) - 1) & ~((BOUND) - 1))   // Aligns to powers of 2 only
-#define IS_ALIGNED(SIZE, BOUND) ((u64)(SIZE) % (BOUND) == 0)
+#define IS_ALIGNED(SIZE, BOUND) ((uint64)(SIZE) % (BOUND) == 0)
 
 #define ARR_LEN(arr) (sizeof(arr)/sizeof(*(arr)))   // # of elements in array
 #define ARR_SIZE(arr) (sizeof(arr))                 // Total size in bytes of array
 
-#define OFFSET_IN(type, member) ((u64)&((type*)0)->member)  // Offset of member variable in struct type
+#define OFFSET_IN(type, member) ((uint64)&((type*)0)->member)  // Offset of member variable in struct type
 
 #define BIT(x) (1UL << (x))
 #define SET_BIT(x, pos) ((x) |= (1UL << (pos)))
@@ -68,4 +68,6 @@ typedef unsigned char byte;
 #define TOGGLE_BIT(x, pos) ((x) ^= (1UL << (pos)))
 #define CHECK_BIT(x, pos) ((x) & (1UL << (pos)))
 
-#define DEFAULT_ARRAY(ARR, SIZE) for(i32 _arr = 0; _arr < (SIZE); _arr++) { (ARR)[_arr] = {}; }
+#define PTR_DIFF(PA, PB) (uint64)((byte*)(PA) - (byte*)(PB))
+
+#define DEFAULT_ARRAY(ARR, SIZE) for(int32 _arr = 0; _arr < (SIZE); _arr++) { (ARR)[_arr] = {}; }

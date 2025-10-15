@@ -8,6 +8,8 @@ DW_MAIN()
 
     initApp(800, 600, "DW App", &gApp);
 
+    testCore();
+
     while(gApp.mRunning)
     {
         poll(&gApp);
