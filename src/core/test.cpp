@@ -2,6 +2,7 @@
 #include "memory.hpp"
 #include "time.hpp"
 #include "debug.hpp"
+#include "string.hpp"
 
 bool testMemory()
 {
@@ -108,6 +109,125 @@ bool testMemory()
     return true;
 }
 
+bool testString()
+{
+    Arena arena = {};
+    initArena(2048, &arena);
+
+    // Testing literal and buffer-based construction
+    {
+        String s1 = str("Hello");
+        ASSERT(s1.mLen == 5);
+        ASSERT(s1.mData != NULL);
+        ASSERT(memcmp(s1.mData, "Hello", 5) == 0);
+
+        byte raw[] = { 'A', 'B', 'C', 0 };
+        String s2 = str(raw, 3);
+        ASSERT(s2.mLen == 3);
+        ASSERT(s2.mData == raw);
+        ASSERT(memcmp(s2.mData, "ABC", 3) == 0);
+    }
+
+    // Testing arena-based construction
+    {
+        const char* msg = "ArenaString";
+        String s = str(&arena, msg);
+        ASSERT(s.mLen == strlen(msg));
+        ASSERT(s.mData != NULL);
+        ASSERT(memcmp(s.mData, msg, s.mLen) == 0);
+
+        // Verify arena advanced
+        ASSERT(arena.mOffset > 0);
+    }
+
+    // Testing equality and inequality
+    {
+        String s1 = str("Test");
+        String s2 = str("Test");
+        String s3 = str("Different");
+
+        ASSERT(s1 == s2);
+        ASSERT(!(s1 != s2));
+        ASSERT(s1 != s3);
+        ASSERT(s1 == "Test");
+        ASSERT("Test" == s1);
+        ASSERT(s1 != "Other");
+        ASSERT("Other" != s1);
+    }
+
+    // Testing cstr()
+    {
+        String s = str("Hello");
+        char* c = cstr(s);
+        ASSERT(strcmp(c, "Hello") == 0);
+    }
+
+    // Testing find() and rfind() with chars
+    {
+        String s = str("banana");
+        ASSERT(find(s, 'b') == 0);
+        ASSERT(find(s, 'n') == 2);
+        ASSERT(find(s, 'z') == -1);
+
+        ASSERT(rfind(s, 'a') == 5);
+        ASSERT(rfind(s, 'b') == 0);
+        ASSERT(rfind(s, 'z') == -1);
+    }
+
+    // Testing find() and rfind() with substrings
+    {
+        String s = str("abracadabra");
+
+        ASSERT(find(s, str("abra")) == 0);
+        ASSERT(find(s, str("cad")) == 4);
+        ASSERT(find(s, str("zzz")) == -1);
+
+        ASSERT(rfind(s, str("abra")) == 7);
+        ASSERT(rfind(s, str("cad")) == 4);
+        ASSERT(rfind(s, str("zzz")) == -1);
+    }
+
+    // Testing substr()
+    {
+        String s = str("substring");
+        String sub1 = substr(s, 3);
+        ASSERT(memcmp(sub1.mData, "string", sub1.mLen) == 0);
+        ASSERT(sub1.mLen == 6);
+
+        String sub2 = substr(s, 0, 3);
+        ASSERT(memcmp(sub2.mData, "sub", sub2.mLen) == 0);
+        ASSERT(sub2.mLen == 3);
+    }
+
+    // Testing join()
+    {
+        String s1 = str("Hello");
+        String s2 = str("World");
+        String joined = join(&arena, s1, s2);
+
+        ASSERT(joined.mLen == s1.mLen + s2.mLen);
+        ASSERT(memcmp(joined.mData, "HelloWorld", joined.mLen) == 0);
+    }
+
+    // Testing formatted string (strf)
+    {
+        String formatted = strf(&arena, "Value: %d %s", 42, "ok");
+        ASSERT(formatted.mLen > 0);
+        ASSERT(strstr((char*)formatted.mData, "Value: 42 ok"));
+    }
+
+    // Testing operator[]
+    {
+        String s = str("Index");
+        ASSERT(s[0] == 'I');
+        ASSERT(s[1] == 'n');
+        ASSERT(s[4] == 'x');
+    }
+
+    destroyArena(&arena);
+    return true;
+}
+
 void testTime(App* pApp)
 {
     ASSERT(pApp);
@@ -182,6 +302,9 @@ void testCore(App* pApp)
     ASSERT(pApp);
     LOG("[TEST] Testing memory...");
     testMemory();
+
+    LOG("[TEST] Testing string...");
+    testString();
 
     LOG("[TEST] Testing time...");
     testTime(pApp);
