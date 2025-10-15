@@ -44,10 +44,10 @@ char* cstr(String s)
     return (char*)s.mData;
 }
 
-String str(byte* data, uint64 len)
+String str(byte* pData, uint64 len)
 {
     String s = {};
-    s.mData = data;
+    s.mData = pData;
     s.mLen = len;
     return s;
 }

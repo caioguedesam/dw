@@ -3,6 +3,7 @@
 #include "time.hpp"
 #include "debug.hpp"
 #include "string.hpp"
+#include "file.hpp"
 
 bool testMemory()
 {
@@ -297,6 +298,95 @@ void testTime(App* pApp)
     }
 }
 
+bool testFile()
+{
+    Arena arena = {};
+    initArena(4096, &arena);
+
+    // Setup
+    String dirPath  = str("test_dir");
+    String filePath = str("test_dir/test_file.txt");
+    const char* fileContent = "Hello, Arena File System!";
+    uint64 contentLen = (uint64)strlen(fileContent);
+
+    // Directory creation
+    {
+        bool created = createDir(dirPath);
+        ASSERT(created);
+        ASSERT(pathExists(dirPath));
+        ASSERT(pathIsDir(dirPath));
+    }
+
+    // File creation and writing
+    {
+        bool fileCreated = createFile(filePath);
+        ASSERT(fileCreated);
+        ASSERT(pathExists(filePath));
+        ASSERT(!pathIsDir(filePath));
+
+        uint64 bytesWritten = writeFile(filePath, (byte*)fileContent, contentLen);
+        ASSERT(bytesWritten == contentLen);
+        ASSERT(getFileSize(filePath) == contentLen);
+    }
+
+    // Path parsing helpers
+    {
+        String ext = getExt(filePath);
+        ASSERT(ext.mLen > 0);
+        ASSERT(ext == "txt");
+
+        String noExt = getNoExt(filePath);
+        ASSERT(noExt.mLen > 0);
+        ASSERT(noExt == "test_dir/test_file");
+
+        String fileNameWithExt = getFileName(filePath, true);
+        ASSERT(fileNameWithExt == "test_file.txt");
+
+        String fileNameNoExt = getFileName(filePath, false);
+        ASSERT(fileNameNoExt == "test_file");
+
+        String fileDir = getFileDir(filePath);
+        ASSERT(fileDir == "test_dir");
+    }
+
+    // Reading file (manual buffer)
+    {
+        byte tempBuf[256] = {};
+        uint64 bytesRead = readFile(filePath, tempBuf);
+        ASSERT(bytesRead == contentLen);
+        ASSERT(memcmp(tempBuf, fileContent, contentLen) == 0);
+    }
+
+    // Reading file (arena buffer)
+    {
+        uint64 readSize = 0;
+        byte* data = readFile(&arena, filePath, &readSize);
+        ASSERT(data);
+        ASSERT(readSize == contentLen);
+        ASSERT(memcmp(data, fileContent, readSize) == 0);
+    }
+
+    // Reading file as String
+    {
+        String content = readFileStr(&arena, filePath);
+        ASSERT(content.mData);
+        ASSERT(content.mLen == contentLen);
+        ASSERT(content == fileContent);
+    }
+
+    // Cleanup and deletion
+    {
+        ASSERT(deleteFile(filePath));
+        ASSERT(!pathExists(filePath));
+
+        ASSERT(deleteDir(dirPath));
+        ASSERT(!pathExists(dirPath));
+    }
+
+    destroyArena(&arena);
+    return true;
+}
+
 void testCore(App* pApp)
 {
     ASSERT(pApp);
@@ -305,6 +395,9 @@ void testCore(App* pApp)
 
     LOG("[TEST] Testing string...");
     testString();
+
+    LOG("[TEST] Testing file...");
+    testFile();
 
     LOG("[TEST] Testing time...");
     testTime(pApp);

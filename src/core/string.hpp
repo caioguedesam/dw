@@ -20,7 +20,7 @@ bool operator!=(const char* s1, String s2);
 
 char* cstr(String s);
 
-String str(byte* data, uint64 len);
+String str(byte* pData, uint64 len);
 String str(const char* literal);
 String str(Arena* pArena, const char* src);
 String str(Arena* pArena, String src);
