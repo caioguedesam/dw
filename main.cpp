@@ -13,6 +13,7 @@ DW_MAIN()
     while(gApp.mRunning)
     {
         poll(&gApp);
+        //debugInput(&gApp);
         // update and render
     }
 

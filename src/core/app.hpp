@@ -1,6 +1,7 @@
 #pragma once
 
 #include "base.hpp"
+#include "input.hpp"
 
 enum AppLoadRequest : uint32
 {
@@ -28,6 +29,10 @@ struct App
 
     // Time
     uint64 mTicksPerSecond = 0;
+
+    // Input
+    CursorState mCursor = {};
+    KeyState    mKeys = {};
     
     bool    mRunning = false;
 };

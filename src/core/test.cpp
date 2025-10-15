@@ -188,3 +188,37 @@ void testCore(App* pApp)
 
     LOG("[TEST] All core tests passed.");
 }
+
+void debugInput(App* pApp)
+{
+    ASSERT(pApp);
+
+    // Testing keys
+    for(uint8 i = 0; i < 255; i++)
+    {
+        if(isJustDown(&pApp->mKeys, (KeyInput)i))
+        {
+            LOGF("[INPUT] Key just down: %u", i);
+        }
+        if(isDown(&pApp->mKeys, (KeyInput)i))
+        {
+            LOGF("[INPUT] Key down: %u", i);
+        }
+
+        if(isJustUp(&pApp->mKeys, (KeyInput)i))
+        {
+            LOGF("[INPUT] Key just up: %u", i);
+        }
+    }
+
+    // Testing cursor
+    int32 x, y;
+    float dx, dy;
+    getPos(&pApp->mCursor, &x, &y);
+    getDelta(&pApp->mCursor, &dx, &dy);
+    if(dx != 0.f || dy != 0.f)
+    {
+        LOGF("[INPUT] Cursor pos    (%d, %d)", x, y);
+        LOGF("[INPUT] Cursor delta  (%.3f, %.3f)", dx, dy);
+    }
+}

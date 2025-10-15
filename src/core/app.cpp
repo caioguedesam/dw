@@ -78,6 +78,9 @@ void initApp(uint32 w, uint32 h, const char* title, App* pApp)
     // Initializing time
     initTime(pApp);
 
+    // Initializing input
+    initInput(pApp);
+
     pApp->mRunning = true;
 
     ShowWindow(pApp->mWindow.mWinHandle, SW_SHOWNORMAL);
@@ -96,6 +99,12 @@ void destroyApp(App* pApp)
 void poll(App* pApp)
 {
     ASSERT(pApp);
+
+    // Poll input
+    pollCursor(&pApp->mCursor);
+    pollKeys(&pApp->mKeys);
+
+    // Poll window messages
     MSG msg = {};
     while(true)
     {
