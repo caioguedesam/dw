@@ -20,6 +20,9 @@ bool operator!=(const char* s1, String s2);
 
 char* cstr(String s);
 
+uint64 hash(String s);
+uint64 hash(const char* s);
+
 String str(byte* pData, uint64 len);
 String str(const char* literal);
 String str(Arena* pArena, const char* src);

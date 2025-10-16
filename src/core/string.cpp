@@ -44,6 +44,22 @@ char* cstr(String s)
     return (char*)s.mData;
 }
 
+uint64 hash(String s)
+{
+    // djb2 string hash
+    uint64 result = 5381;
+    for(uint64 i = 0; i < s.mLen; i++)
+    {
+        result = ((result << 5) + result) + (uint8)s.mData[i];
+    }
+    return result;
+}
+
+uint64 hash(const char* s)
+{
+    return hash(str(s));
+}
+
 String str(byte* pData, uint64 len)
 {
     String s = {};

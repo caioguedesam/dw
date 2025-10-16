@@ -4,6 +4,8 @@
 #include "debug.hpp"
 #include "string.hpp"
 #include "file.hpp"
+#include "array.hpp"
+#include "hash_map.hpp"
 
 bool testMemory()
 {
@@ -229,6 +231,208 @@ bool testString()
     return true;
 }
 
+bool testArray()
+{
+    Arena arena = {};
+    initArena(4096, &arena);
+
+    // Basic array creation
+    {
+        Array<int> arr = array<int>(&arena, 8);
+
+        ASSERT(arr.mData != NULL);
+        ASSERT(arr.mCapacity == 8);
+        ASSERT(arr.mCount == 0);
+    }
+
+    // Push and index access
+    {
+        Array<int> arr = array<int>(&arena, 4);
+        arr.push(10);
+        arr.push(20);
+        arr.push(30);
+
+        ASSERT(arr.mCount == 3);
+        ASSERT(arr[0] == 10);
+        ASSERT(arr[1] == 20);
+        ASSERT(arr[2] == 30);
+
+        // Modify via operator[]
+        arr[1] = 25;
+        ASSERT(arr[1] == 25);
+    }
+
+    // Pop operation
+    {
+        Array<int> arr = array<int>(&arena, 4);
+        arr.push(1);
+        arr.push(2);
+        arr.push(3);
+        ASSERT(arr.mCount == 3);
+
+        arr.pop();
+        ASSERT(arr.mCount == 2);
+        ASSERT(arr[0] == 1);
+        ASSERT(arr[1] == 2);
+    }
+
+    // Clear operation
+    {
+        Array<int> arr = array<int>(&arena, 4);
+        arr.push(5);
+        arr.push(6);
+        ASSERT(arr.mCount == 2);
+
+        arr.clear();
+        ASSERT(arr.mCount == 0);
+    }
+
+    // Initial count constructor
+    {
+        Array<int> arr = array<int>(&arena, 8, 3, 42);
+
+        ASSERT(arr.mCapacity == 8);
+        ASSERT(arr.mCount == 3);
+
+        for (uint64 i = 0; i < arr.mCount; i++)
+            ASSERT(arr[i] == 42);
+    }
+
+    // Aligned allocation
+    {
+        Array<int> arr = arrayAlign<int>(&arena, 16, 64);
+        ASSERT(arr.mData != NULL);
+        ASSERT(IS_ALIGNED(arr.mData, 64));
+        ASSERT(arr.mCapacity == 16);
+        ASSERT(arr.mCount == 0);
+    }
+
+    // Aligned allocation with initial values
+    {
+        Array<float> arr = arrayAlign<float>(&arena, 8, 32, 4, 3.14f);
+
+        ASSERT(arr.mCapacity == 8);
+        ASSERT(arr.mCount == 4);
+        ASSERT(IS_ALIGNED(arr.mData, 32));
+
+        for (uint64 i = 0; i < arr.mCount; i++)
+            ASSERT(arr[i] == 3.14f);
+    }
+
+    destroyArena(&arena);
+    return true;
+}
+
+void testHashMap()
+{
+    Arena arena = {};
+    initArena(MB(1), &arena);
+
+    // Basic creation
+    {
+        HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 8);
+        ASSERT(map.mBuckets.mCount == 8);
+        ASSERT(map.mBuckets.mCapacity == 8);
+        ASSERT(map.mBuckets[0].valid == false);
+        ASSERT(map.mBuckets[7].valid == false);
+    }
+
+    // Insert & retrieve
+    {
+        HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 8);
+        map.insert("apple", 5);
+        map.insert("banana", 10);
+        map.insert("cherry", 15);
+
+        ASSERT(map.contains("apple"));
+        ASSERT(map.contains("banana"));
+        ASSERT(map.contains("cherry"));
+        ASSERT(map["apple"] == 5);
+        ASSERT(map["banana"] == 10);
+        ASSERT(map["cherry"] == 15);
+    }
+
+    // Replace value for same key
+    {
+        HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 8);
+        bool ret = map.insert("apple", 1);
+        ASSERT(ret);
+        ASSERT(map["apple"] == 1);
+        ret = map.insert("apple", 99);
+        ASSERT(!ret);
+        ASSERT(map["apple"] == 1);
+    }
+
+    // Contains & remove
+    {
+        HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 8);
+        map.insert("dog", 50);
+        map.insert("cat", 25);
+        map.insert("mouse", 75);
+
+        ASSERT(map.contains("cat"));
+        ASSERT(map.contains("mouse"));
+        map.remove("cat");
+        ASSERT(!map.contains("cat"));
+        ASSERT(map.contains("dog"));
+        ASSERT(map.contains("mouse"));
+    }
+
+    // Linear probing behavior
+    {
+        HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 4);
+        map.insert("keyA", 1);
+        map.insert("keyB", 2);
+        map.insert("keyC", 3);
+        map.insert("keyD", 4);
+
+        ASSERT(map.contains("keyA"));
+        ASSERT(map.contains("keyB"));
+        ASSERT(map.contains("keyC"));
+        ASSERT(map.contains("keyD"));
+        ASSERT(map["keyB"] == 2);
+    }
+
+    // String keys
+    {
+        HashMap<String, int> map = hashmap<String, int>(&arena, 8);
+        String key1 = str("foo");
+        String key2 = str("bar");
+        String key3 = str("baz");
+
+        map.insert(key1, 10);
+        map.insert(key2, 20);
+        map.insert(key3, 30);
+
+        ASSERT(map.contains(key1));
+        ASSERT(map.contains(key2));
+        ASSERT(map.contains(key3));
+        ASSERT(map[key1] == 10);
+        ASSERT(map[key2] == 20);
+        ASSERT(map[key3] == 30);
+    }
+
+    // Pointer keys
+    {
+        HashMap<void*, const char*> map = hashmap<void*, const char*>(&arena, 8);
+        int a, b, c;
+
+        map.insert(&a, "alpha");
+        map.insert(&b, "beta");
+        map.insert(&c, "gamma");
+
+        ASSERT(map.contains(&a));
+        ASSERT(map.contains(&b));
+        ASSERT(map.contains(&c));
+        ASSERT(strcmp(map[&b], "beta") == 0);
+
+        map.remove(&b);
+        ASSERT(!map.contains(&b));
+    }
+
+    destroyArena(&arena);
+}
+
 void testTime(App* pApp)
 {
     ASSERT(pApp);
@@ -398,6 +602,12 @@ void testCore(App* pApp)
 
     LOG("[TEST] Testing file...");
     testFile();
+
+    LOG("[TEST] Testing array...");
+    testArray();
+
+    LOG("[TEST] Testing hash map...");
+    testHashMap();
 
     LOG("[TEST] Testing time...");
     testTime(pApp);
