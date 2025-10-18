@@ -9,6 +9,7 @@ DW_MAIN()
     initApp(800, 600, "DW App", &gApp);
 
     testCore(&gApp);
+    testMath();
 
     while(gApp.mRunning)
     {

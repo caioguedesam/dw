@@ -594,25 +594,25 @@ bool testFile()
 void testCore(App* pApp)
 {
     ASSERT(pApp);
-    LOG("[TEST] Testing memory...");
+    LOG("[TEST-CORE] Testing memory...");
     testMemory();
 
-    LOG("[TEST] Testing string...");
+    LOG("[TEST-CORE] Testing string...");
     testString();
 
-    LOG("[TEST] Testing file...");
+    LOG("[TEST-CORE] Testing file...");
     testFile();
 
-    LOG("[TEST] Testing array...");
+    LOG("[TEST-CORE] Testing array...");
     testArray();
 
-    LOG("[TEST] Testing hash map...");
+    LOG("[TEST-CORE] Testing hash map...");
     testHashMap();
 
-    LOG("[TEST] Testing time...");
+    LOG("[TEST-CORE] Testing time...");
     testTime(pApp);
 
-    LOG("[TEST] All core tests passed.");
+    LOG("[TEST-CORE] All core tests passed.");
 }
 
 void debugInput(App* pApp)
