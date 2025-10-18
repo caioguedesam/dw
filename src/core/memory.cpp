@@ -87,3 +87,62 @@ void arenaFallback(Arena* pArena, uint64 offset)
     ASSERT(offset <= pArena->mOffset);
     pArena->mOffset = offset;
 }
+
+void initPool(uint64 blockSize, uint64 blockCount, Pool* pPool)
+{
+    ASSERT(pPool);
+
+    uint64 fullBlockSize = blockSize + sizeof(Pool::Header);
+    uint64 poolSize = fullBlockSize * blockCount;
+    void* poolMemory = VirtualAlloc(0, poolSize,
+            MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    pPool->pStart = (byte*)poolMemory;
+    pPool->mBlockSize = blockSize;
+    pPool->mBlockCount = blockCount;
+
+    // Initializing block headers and free list
+    Pool::Header* header = (Pool::Header*)pPool->pStart;
+    for(uint64 i = 0; i < blockCount; i++)
+    {
+        header->mUsed = false;
+        Pool::Header* next = (Pool::Header*)((uint64)header + fullBlockSize);
+        header->pNextFree = (i == blockCount - 1)
+            ? NULL
+            : next;
+        header = next;
+    }
+
+    pPool->pFreeBlocks = (Pool::Header*)pPool->pStart;
+}
+
+void destroyPool(Pool* pPool)
+{
+    ASSERT(pPool);
+    VirtualFree(pPool->pStart, 0, MEM_RELEASE);
+    *pPool = {};
+}
+
+void* poolAlloc(Pool* pPool)
+{
+    ASSERT(pPool);
+    ASSERT(pPool->pFreeBlocks);
+
+    Pool::Header* header = pPool->pFreeBlocks;
+    pPool->pFreeBlocks = header->pNextFree;
+    header->mUsed = true;
+    return (void*)((uint64)header + sizeof(Pool::Header));
+}
+
+void poolFree(Pool* pPool, void* pBlock)
+{
+    ASSERT(pPool && pBlock);
+    ASSERT(pBlock >= pPool->pStart);
+    uint64 fullBlockSize = pPool->mBlockSize + sizeof(Pool::Header);
+    uint64 poolSize = fullBlockSize * pPool->mBlockCount;
+    ASSERT(pBlock < pPool->pStart + poolSize);
+
+    Pool::Header* header = (Pool::Header*)((uint64)pBlock - sizeof(Pool::Header));
+    header->mUsed = false;
+    header->pNextFree = pPool->pFreeBlocks;
+    pPool->pFreeBlocks = header;
+}

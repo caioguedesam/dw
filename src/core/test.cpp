@@ -7,7 +7,7 @@
 #include "array.hpp"
 #include "hash_map.hpp"
 
-bool testMemory()
+bool testArena()
 {
     Arena arena = {};
     // Testing initialization
@@ -107,6 +107,100 @@ bool testMemory()
         ASSERT(arena.mOffset == 0);
 
         destroyArena(&arena);
+    }
+
+    return true;
+}
+
+bool testPool()
+{
+    // Basic initialization
+    {
+        Pool pool = {};
+        initPool(64, 8, &pool);
+
+        ASSERT(pool.pStart != NULL);
+        ASSERT(pool.mBlockSize == 64);
+        ASSERT(pool.mBlockCount == 8);
+        ASSERT(pool.pFreeBlocks != NULL);
+
+        // Free list should contain all blocks initially
+        uint64 freeCount = 0;
+        Pool::Header* h = pool.pFreeBlocks;
+        while (h)
+        {
+            freeCount++;
+            h = h->pNextFree;
+        }
+        ASSERT(freeCount == 8);
+
+        destroyPool(&pool);
+    }
+
+    // Allocation / deallocation
+    {
+        Pool pool = {};
+        initPool(32, 4, &pool);
+
+        void* a = poolAlloc(&pool);
+        void* b = poolAlloc(&pool);
+        void* c = poolAlloc(&pool);
+        void* d = poolAlloc(&pool);
+
+        // All allocations should be non-null and distinct
+        ASSERT(a != NULL);
+        ASSERT(b != NULL);
+        ASSERT(c != NULL);
+        ASSERT(d != NULL);
+        ASSERT(a != b && a != c && a != d && b != c && c != d);
+
+        // Pool should now be exhausted
+        ASSERT(pool.pFreeBlocks == NULL);
+
+        // Free one and allocate again
+        poolFree(&pool, b);
+        void* f = poolAlloc(&pool);
+        ASSERT(f == b); // Should reuse the same block
+
+        destroyPool(&pool);
+    }
+
+    // Free-all pattern and reuse
+    {
+        Pool pool = {};
+        initPool(128, 3, &pool);
+
+        void* blocks[3];
+        for (int i = 0; i < 3; ++i)
+            blocks[i] = poolAlloc(&pool);
+
+        ASSERT(pool.pFreeBlocks == NULL);
+
+        // Free all in reverse
+        poolFree(&pool, blocks[2]);
+        poolFree(&pool, blocks[1]);
+        poolFree(&pool, blocks[0]);
+
+        // Allocate again; should reuse everything
+        void* newBlocks[3];
+        for (int i = 0; i < 3; ++i)
+            newBlocks[i] = poolAlloc(&pool);
+
+        ASSERT(newBlocks[0] != NULL && newBlocks[1] != NULL && newBlocks[2] != NULL);
+        ASSERT(pool.pFreeBlocks == NULL);
+
+        destroyPool(&pool);
+    }
+
+    // Cleanup
+    {
+        Pool pool = {};
+        initPool(64, 4, &pool);
+        destroyPool(&pool);
+        ASSERT(pool.pStart == NULL);
+        ASSERT(pool.pFreeBlocks == NULL);
+        ASSERT(pool.mBlockSize == 0);
+        ASSERT(pool.mBlockCount == 0);
     }
 
     return true;
@@ -594,8 +688,11 @@ bool testFile()
 void testCore(App* pApp)
 {
     ASSERT(pApp);
-    LOG("[TEST-CORE] Testing memory...");
-    testMemory();
+    LOG("[TEST-CORE] Testing arena allocator...");
+    testArena();
+
+    LOG("[TEST-CORE] Testing pool allocator...");
+    testPool();
 
     LOG("[TEST-CORE] Testing string...");
     testString();
