@@ -6,21 +6,21 @@
 
 #define ASSERTVK(EXPR) ASSERT((EXPR) == VK_SUCCESS)
 
-
 struct RendererDesc
 {
     uint64 mMaxBuffers  = 1024;
     uint64 mMaxTextures = 1024;
     uint64 mMaxSamplers = 64;
+    uint64 mMaxShaders  = 256;
 };
 
 struct Renderer
 {
     // Pools for reusable render data
-    Pool* pPoolBuffer   = NULL;    
-    Pool* pPoolTexture  = NULL;    
-    Pool* pPoolSampler  = NULL;
-    Pool* pPoolShader   = NULL;
+    Pool poolBuffer   = {};    
+    Pool poolTexture  = {};    
+    Pool poolSampler  = {};
+    Pool poolShader   = {};
 
     RendererDesc mDesc = {};
 

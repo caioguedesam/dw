@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/base.hpp"
+#include "math.h"
 
 // Constants
 #define PI 3.14159265358979323846

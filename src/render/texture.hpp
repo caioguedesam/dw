@@ -83,6 +83,8 @@ struct Texture
 void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
 
+uint32 getMaxMipCount(uint32 w, uint32 h);
+
 // TODO_DW: After command buffers
 void cmdBarrier(CommandBuffer* pCmd, Texture* pTexture, ImageLayout oldLayout, ImageLayout newLayout);
 void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture);

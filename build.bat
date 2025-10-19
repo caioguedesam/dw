@@ -79,9 +79,9 @@ set DEFINES=-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS
 set L_FLAGS=-luser32.lib -Wl,-nodefaultlib:libcmt -l%DEPFILE:/=\%.lib
 
 if "%BUILD%"=="debug" (
-    set CC_FLAGS_O=-O0 --debug
+    set CC_FLAGS_O=-O0 --debug -DDW_DEBUG
 ) else (
-    set CC_FLAGS_O=-Ofast
+    set CC_FLAGS_O=-Ofast -DDW_NODEBUG
 )
 
 if not exist "./build/%BUILD%" (

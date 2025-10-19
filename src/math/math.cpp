@@ -1,5 +1,4 @@
 #include "math.hpp"
-#include "math.h"
 
 #define DEFINE_VECTOR2(NAME, TYPE) \
 bool operator==(NAME a, NAME b) \

@@ -63,9 +63,11 @@ void* arenaPushZero(Arena* pArena, uint64 size, uint64 alignment)
 void* arenaPushCopy(Arena* pArena, uint64 size, void* pSrc, uint64 srcSize)
 {
     ASSERT(pArena);
-    ASSERT(pSrc);
     void* result = arenaPush(pArena, size);
-    memcpy(result, pSrc, srcSize);
+    if(pSrc)
+    {
+        memcpy(result, pSrc, srcSize);
+    }
     return result;
 }
 

@@ -3,6 +3,7 @@
 #include "render.hpp"
 #include "command_buffer.hpp"
 #include "../core/debug.hpp"
+#include "../math/math.hpp"
 #include "vma/vk_mem_alloc.h"
 #include "vulkan/vulkan_core.h"
 
@@ -42,7 +43,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture == NULL);
 
-    *ppTexture = (Texture*)poolAlloc(pRenderer->pPoolTexture);
+    *ppTexture = (Texture*)poolAlloc(&pRenderer->poolTexture);
 
     **ppTexture = {};
 
@@ -101,6 +102,8 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     (*ppTexture)->mVkImage = vkImage;
     (*ppTexture)->mVkImageView = vkImageView;
     (*ppTexture)->mVkAllocation = vkAlloc;
+
+    // TODO_DW: Generate texture mipmap based on params
 }
 
 void removeTexture(Renderer* pRenderer, Texture** ppTexture)
@@ -119,6 +122,11 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
     
     **ppTexture = {};
 
-    poolFree(pRenderer->pPoolTexture, *ppTexture);
+    poolFree(&pRenderer->poolTexture, *ppTexture);
     *ppTexture = NULL;
+}
+
+uint32 getMaxMipCount(uint32 w, uint32 h)
+{
+    return (uint32)(floorf(log2f(MAX(w, h))));
 }
