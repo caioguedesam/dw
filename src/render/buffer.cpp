@@ -4,8 +4,7 @@
 
 void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pSrc)
 {
-    ASSERT(pRenderer);
-    ASSERT(ppBuffer);
+    ASSERT(pRenderer && ppBuffer);
     ASSERT(*ppBuffer == NULL);
 
     *ppBuffer = (Buffer*)poolAlloc(pRenderer->pPoolBuffer);

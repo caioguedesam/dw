@@ -25,6 +25,7 @@ struct Renderer
 
     // Vulkan
     VkPhysicalDeviceProperties mVkDeviceProperties = {};
+    VkDevice mVkDevice = VK_NULL_HANDLE;
     VmaAllocator mVkAllocator = VK_NULL_HANDLE;
 };
 
