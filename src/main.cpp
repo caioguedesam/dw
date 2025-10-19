@@ -1,4 +1,4 @@
-#include "./generated/build_includes.hpp"
+#include "../generated/build_includes.hpp"
 
 App gApp;
 

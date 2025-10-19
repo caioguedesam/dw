@@ -27,6 +27,8 @@ if not exist "./generated" (
 REM Write header
 echo #pragma once > "%INCLUDES_OUTFILE%"
 
+set "IGNORED_FILES=src/main.cpp src/dependencies.cpp"
+
 REM Loop recursively through .hpp and .cpp files
 for /r src %%f in (*.hpp *.cpp) do (
     REM Get relative path from current directory
@@ -34,7 +36,19 @@ for /r src %%f in (*.hpp *.cpp) do (
     set "REL=!REL:%CD%\=!"
     REM Replace backslashes with forward slashes
     set "REL=!REL:\=/!"
-    echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
+
+    set "IGNORE_FILE=0"
+    for %%I in (!IGNORED_FILES!) do (
+        if /I "!REL!"=="%%I" set "IGNORE_FILE=1"
+    )
+
+    if !IGNORE_FILE!==0 (
+        echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
+    )
+
+    rem if /i not "!REL!"=="src/main.cpp" (
+    rem     echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
+    rem )
 )
 
 echo %GREEN%Generated %INCLUDES_OUTFILE%%RESET%.
@@ -43,28 +57,48 @@ REM ---------------------------------------------
 REM Building app
 
 set BUILD=debug
+set GENERATE_JSON=0
+set BUILD_DEPENDENCIES=0
+for %%A in (%*) do (
+    if "%%~A"=="-r" set BUILD=release
+    if "%%~A"=="-d" set BUILD=debug
+    if "%%~A"=="--json" set GENERATE_JSON=1
+    if "%%~A"=="--dependencies" set BUILD_DEPENDENCIES=1
+)
 
 if "%~1"=="-r" set BUILD=release
 if "%~1"=="-d" set BUILD=debug
 
+set DEPFILE=./build/%BUILD%/dw_dependencies
 set OUTFILE=./build/%BUILD%/dw.exe
-echo Building %OUTFILE% [%BUILD%]...
 
+set VULKAN_SDK_PATH=%VULKAN_SDK:\=/%
 set CC=clang
+set CC_FLAGS=-std=c++17 -I./ -I%VULKAN_SDK_PATH%/Include/ -fms-runtime-lib=dll
 set DEFINES=-DWIN32_LEAN_AND_MEAN -DNOMINMAX -D_CRT_SECURE_NO_WARNINGS
-set L_FLAGS=-luser32.lib -Wl,-nodefaultlib:libcmt
+set L_FLAGS=-luser32.lib -Wl,-nodefaultlib:libcmt -l%DEPFILE:/=\%.lib
 
 if "%BUILD%"=="debug" (
-    set CC_FLAGS=-std=c++17 -I./ -O0 --debug -fms-runtime-lib=dll
+    set CC_FLAGS_O=-O0 --debug
 ) else (
-    set CC_FLAGS=-std=c++17 -I./ -Ofast -fms-runtime-lib=dll
+    set CC_FLAGS_O=-Ofast
 )
 
 if not exist "./build/%BUILD%" (
     mkdir "./build/%BUILD%"
 )
 
-%CC% %CC_FLAGS% %DEFINES% ./main.cpp %L_FLAGS% -o %OUTFILE%
+rem Building dependencies
+if %BUILD_DEPENDENCIES%==1 (
+    echo Building %DEPFILE%.lib...
+    %CC% %CC_FLAGS% -Ofast -Wno-nullability-completeness -c %DEFINES% ./src/dependencies.cpp -o %DEPFILE:/=\%.obj
+    lib /OUT:%DEPFILE:/=\%.lib %DEPFILE:/=\%.obj user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib >nul
+    del "%DEPFILE:/=\%.obj"
+)
+
+rem Building app
+echo Building %OUTFILE% [%BUILD%]...
+%CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% ./src/main.cpp %L_FLAGS% -o %OUTFILE%
 
 rem Get end time:
 for /F "tokens=1-4 delims=:.," %%a in ("%time%") do (
@@ -81,3 +115,25 @@ if %ss% lss 10 set ss=0%ss%
 if %cc% lss 10 set cc=0%cc%
 
 echo %GREEN%Build finished in %mm%:%ss%:%cc%.%RESET% 
+
+rem Compile_commands.json generation (for clangd)
+set COMPILE_COMMAND=clang %CC_FLAGS% %DEFINES% -c ./src/main.cpp
+set CURR_DIR=%~dp0
+set CURR_DIR=!CURR_DIR:\=/!
+set CURR_DIR=%CURR_DIR:~0,-1%
+set JSON_FILE=./compile_commands.json
+
+if %GENERATE_JSON%==1 (
+    REM Write JSON file
+    (
+        echo [
+        echo   {
+        echo     "directory": "!CURR_DIR!",
+        echo     "command": "%COMPILE_COMMAND%",
+        echo     "file": "src/main.cpp"
+        echo   }
+        echo ]
+    ) > "%JSON_FILE%"
+    
+    echo %BLUE%Generated %JSON_FILE%%RESET%.
+)
