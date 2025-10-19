@@ -19,7 +19,8 @@ struct Renderer
     // Pools for reusable render data
     Pool* pPoolBuffer   = NULL;    
     Pool* pPoolTexture  = NULL;    
-    Pool* pPoolSampler  = NULL;    
+    Pool* pPoolSampler  = NULL;
+    Pool* pPoolShader   = NULL;
 
     RendererDesc mDesc = {};
 

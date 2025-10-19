@@ -88,11 +88,13 @@ if not exist "./build/%BUILD%" (
     mkdir "./build/%BUILD%"
 )
 
-rem Building dependencies
+rem Building dependencies (always in release mode)
+rem TODO_DW: Just shaderc adds 80MB to dependency lib size. Maybe this should be changed.
+set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib %VULKAN_SDK_PATH%/Lib/shaderc_combined.lib
 if %BUILD_DEPENDENCIES%==1 (
     echo Building %DEPFILE%.lib...
     %CC% %CC_FLAGS% -Ofast -Wno-nullability-completeness -c %DEFINES% ./src/dependencies.cpp -o %DEPFILE:/=\%.obj
-    lib /OUT:%DEPFILE:/=\%.lib %DEPFILE:/=\%.obj user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib >nul
+    lib /OUT:%DEPFILE:/=\%.lib %DEPFILE:/=\%.obj %DEPS% >nul
     del "%DEPFILE:/=\%.obj"
 )
 
