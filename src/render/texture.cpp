@@ -43,7 +43,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture == NULL);
 
-    *ppTexture = (Texture*)poolAlloc(&pRenderer->poolTexture);
+    *ppTexture = (Texture*)poolAlloc(&pRenderer->poolTextures);
 
     **ppTexture = {};
 
@@ -122,7 +122,7 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
     
     **ppTexture = {};
 
-    poolFree(&pRenderer->poolTexture, *ppTexture);
+    poolFree(&pRenderer->poolTextures, *ppTexture);
     *ppTexture = NULL;
 }
 
@@ -131,7 +131,7 @@ void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler)
     ASSERT(pRenderer && ppSampler);
     ASSERT(*ppSampler == NULL);
 
-    *ppSampler = (Sampler*)poolAlloc(&pRenderer->poolSampler);
+    *ppSampler = (Sampler*)poolAlloc(&pRenderer->poolSamplers);
 
     **ppSampler = {};
 
@@ -180,7 +180,7 @@ void removeSampler(Renderer* pRenderer, Sampler** ppSampler)
 
     **ppSampler = {};
 
-    poolFree(&pRenderer->poolSampler, *ppSampler);
+    poolFree(&pRenderer->poolSamplers, *ppSampler);
     *ppSampler = NULL;
 }
 

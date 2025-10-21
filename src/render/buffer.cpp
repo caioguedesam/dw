@@ -7,7 +7,7 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
     ASSERT(pRenderer && ppBuffer);
     ASSERT(*ppBuffer == NULL);
 
-    *ppBuffer = (Buffer*)poolAlloc(&pRenderer->poolBuffer);
+    *ppBuffer = (Buffer*)poolAlloc(&pRenderer->poolBuffers);
 
     **ppBuffer = {};
 
@@ -55,7 +55,7 @@ void removeBuffer(Renderer* pRenderer, Buffer** ppBuffer)
 
     **ppBuffer = {};
 
-    poolFree(&pRenderer->poolBuffer, *ppBuffer);
+    poolFree(&pRenderer->poolBuffers, *ppBuffer);
     *ppBuffer = NULL;
 }
 

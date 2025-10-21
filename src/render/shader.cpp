@@ -7,7 +7,7 @@ void addShader(Renderer* pRenderer, ShaderDesc desc, Shader** ppShader)
     ASSERT(pRenderer && ppShader);
     ASSERT(*ppShader == NULL);
 
-    *ppShader = (Shader*)poolAlloc(&pRenderer->poolShader);
+    *ppShader = (Shader*)poolAlloc(&pRenderer->poolShaders);
 
     **ppShader = {};
 
@@ -41,6 +41,6 @@ void removeShader(Renderer* pRenderer, Shader** ppShader)
 
     **ppShader = {};
 
-    poolFree(&pRenderer->poolShader, ppShader);
+    poolFree(&pRenderer->poolShaders, ppShader);
     *ppShader = NULL;
 }
