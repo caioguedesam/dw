@@ -8,26 +8,30 @@
 
 struct RendererDesc
 {
-    uint64 mMaxBuffers  = 1024;
-    uint64 mMaxTextures = 1024;
-    uint64 mMaxSamplers = 64;
-    uint64 mMaxShaders  = 256;
+    uint64 mMaxBuffers          = 1024;
+    uint64 mMaxTextures         = 1024;
+    uint64 mMaxSamplers         = 64;
+    uint64 mMaxShaders          = 256;
+    uint64 mMaxResourceSets     = 64;
 };
 
 struct Renderer
 {
     // Pools for reusable render data
-    Pool poolBuffer   = {};    
-    Pool poolTexture  = {};    
-    Pool poolSampler  = {};
-    Pool poolShader   = {};
+    Pool poolBuffer         = {};    
+    Pool poolTexture        = {};    
+    Pool poolSampler        = {};
+    Pool poolShader         = {};
+    Pool poolResourceSets   = {};
 
     RendererDesc mDesc = {};
 
     // Vulkan
     VkPhysicalDeviceProperties mVkDeviceProperties = {};
     VkDevice mVkDevice = VK_NULL_HANDLE;
+    VkPhysicalDevice mVkPhysicalDevice = VK_NULL_HANDLE;
     VmaAllocator mVkAllocator = VK_NULL_HANDLE;
+    VkDescriptorPool mVkDescriptorPool = VK_NULL_HANDLE;
 };
 
 void initRenderer(RendererDesc desc, Renderer* pRenderer);

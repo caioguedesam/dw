@@ -80,8 +80,49 @@ struct Texture
     VmaAllocation   mVkAllocation   = VK_NULL_HANDLE;
 };
 
+enum SamplerFilter
+{
+    SAMPLER_FILTER_LINEAR   = VK_FILTER_LINEAR,
+    SAMPLER_FILTER_NEAREST  = VK_FILTER_NEAREST,
+};
+
+enum SamplerAddressMode
+{
+    SAMPLER_ADDRESS_REPEAT              = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+    SAMPLER_ADDRESS_CLAMP               = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+    SAMPLER_ADDRESS_CLAMP_TO_BORDER     = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+};
+
+enum SamplerBorder
+{
+    SAMPLER_BORDER_BLACK        = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+    SAMPLER_BORDER_WHITE        = VK_BORDER_COLOR_INT_OPAQUE_WHITE,
+    SAMPLER_BORDER_WHITE_FLOAT  = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+};
+
+struct SamplerDesc
+{
+    SamplerFilter mMinFilter        = SAMPLER_FILTER_NEAREST;
+    SamplerFilter mMagFilter        = SAMPLER_FILTER_NEAREST;
+    SamplerFilter mMipFilter        = SAMPLER_FILTER_NEAREST;
+    SamplerAddressMode mAddressU    = SAMPLER_ADDRESS_REPEAT;
+    SamplerAddressMode mAddressV    = SAMPLER_ADDRESS_REPEAT;
+    SamplerAddressMode mAddressW    = SAMPLER_ADDRESS_REPEAT;
+    SamplerBorder mBorderColor      = SAMPLER_BORDER_BLACK;
+    bool mAniso                     = false;
+};
+
+struct Sampler
+{
+    SamplerDesc mDesc = {};
+
+    VkSampler vkSampler = VK_NULL_HANDLE;
+};
+
 void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
+void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler);
+void removeSampler(Renderer* pRenderer, Sampler** ppSampler);
 
 uint32 getMaxMipCount(uint32 w, uint32 h);
 

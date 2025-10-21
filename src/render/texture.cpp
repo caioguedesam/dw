@@ -126,6 +126,64 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
     *ppTexture = NULL;
 }
 
+void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler)
+{
+    ASSERT(pRenderer && ppSampler);
+    ASSERT(*ppSampler == NULL);
+
+    *ppSampler = (Sampler*)poolAlloc(&pRenderer->poolSampler);
+
+    **ppSampler = {};
+
+    VkSamplerCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.minFilter = (VkFilter)desc.mMinFilter;
+    info.magFilter = (VkFilter)desc.mMagFilter;
+    info.mipmapMode = (VkSamplerMipmapMode)desc.mMipFilter;
+    info.addressModeU = (VkSamplerAddressMode)desc.mAddressU;
+    info.addressModeV = (VkSamplerAddressMode)desc.mAddressV;
+    info.addressModeW = (VkSamplerAddressMode)desc.mAddressW;
+    info.borderColor = (VkBorderColor)desc.mBorderColor;
+    info.anisotropyEnable = desc.mAniso;
+    if(desc.mAniso)
+    {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(pRenderer->mVkPhysicalDevice, &props);
+        info.maxAnisotropy = props.limits.maxSamplerAnisotropy;
+    }
+
+    info.unnormalizedCoordinates = VK_FALSE;
+    info.compareEnable = VK_FALSE;
+    info.compareOp = VK_COMPARE_OP_ALWAYS;
+    info.mipLodBias = 0.f;
+    info.minLod = 0.f;
+    info.maxLod = 1000.f;
+
+    VkSampler vkSampler;
+    VkResult ret = vkCreateSampler(
+            pRenderer->mVkDevice,
+            &info,
+            NULL,
+            &vkSampler);
+    ASSERTVK(ret);
+
+    (*ppSampler)->mDesc = desc;
+    (*ppSampler)->vkSampler = vkSampler;
+}
+
+void removeSampler(Renderer* pRenderer, Sampler** ppSampler)
+{
+    ASSERT(pRenderer && ppSampler);
+    ASSERT(*ppSampler);
+
+    vkDestroySampler(pRenderer->mVkDevice, (*ppSampler)->vkSampler, NULL);
+
+    **ppSampler = {};
+
+    poolFree(&pRenderer->poolSampler, *ppSampler);
+    *ppSampler = NULL;
+}
+
 uint32 getMaxMipCount(uint32 w, uint32 h)
 {
     return (uint32)(floorf(log2f(MAX(w, h))));
