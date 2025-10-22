@@ -5,6 +5,8 @@
 
 struct Renderer;
 
+// --------------------------------------
+// Buffer
 enum BufferType : uint32
 {
     BUFFER_TYPE_INVALID = 0,

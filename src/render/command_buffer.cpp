@@ -65,7 +65,7 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
             if(pCmd->mState == COMMAND_BUFFER_SUBMITTED)
             {
                 ASSERT(pCmd->mVkFence != VK_NULL_HANDLE);
-                ret = vkGetFenceStatus(pRenderer->mVkDevice, pCmd->mVkFence);
+                VkResult ret = vkGetFenceStatus(pRenderer->mVkDevice, pCmd->mVkFence);
                 if(ret == VK_SUCCESS)
                 {
                     pOutCmd = pCmd;

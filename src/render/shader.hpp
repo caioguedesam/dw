@@ -4,6 +4,8 @@
 
 struct Renderer;
 
+// --------------------------------------
+// Shader
 enum ShaderType : uint32
 {
     SHADER_TYPE_VERT = VK_SHADER_STAGE_VERTEX_BIT,

@@ -7,6 +7,8 @@ struct Renderer;
 struct CommandBuffer;
 struct Buffer;
 
+// --------------------------------------
+// Texture
 enum ImageFormat
 {
     FORMAT_INVALID              = VK_FORMAT_UNDEFINED,
@@ -80,6 +82,19 @@ struct Texture
     VmaAllocation   mVkAllocation   = VK_NULL_HANDLE;
 };
 
+void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
+void removeTexture(Renderer* pRenderer, Texture** ppTexture);
+
+uint32 getMaxMipCount(uint32 w, uint32 h);
+
+// TODO_DW: After command buffers
+void cmdBarrier(CommandBuffer* pCmd, Texture* pTexture, ImageLayout oldLayout, ImageLayout newLayout);
+void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture);
+void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc);
+void cmdClearTexture(CommandBuffer* pCmd, Texture* pTexture, float r, float g, float b, float a);
+
+// --------------------------------------
+// Sampler
 enum SamplerFilter
 {
     SAMPLER_FILTER_LINEAR   = VK_FILTER_LINEAR,
@@ -119,15 +134,5 @@ struct Sampler
     VkSampler vkSampler = VK_NULL_HANDLE;
 };
 
-void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
-void removeTexture(Renderer* pRenderer, Texture** ppTexture);
 void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler);
 void removeSampler(Renderer* pRenderer, Sampler** ppSampler);
-
-uint32 getMaxMipCount(uint32 w, uint32 h);
-
-// TODO_DW: After command buffers
-void cmdBarrier(CommandBuffer* pCmd, Texture* pTexture, ImageLayout oldLayout, ImageLayout newLayout);
-void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture);
-void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc);
-void cmdClearTexture(CommandBuffer* pCmd, Texture* pTexture, float r, float g, float b, float a);

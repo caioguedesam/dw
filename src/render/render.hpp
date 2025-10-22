@@ -8,16 +8,10 @@
 
 #define ASSERTVK(EXPR) ASSERT((EXPR) == VK_SUCCESS)
 
-struct RendererDesc
-{
-    uint64 mMaxBuffers          = 1024;
-    uint64 mMaxTextures         = 1024;
-    uint64 mMaxSamplers         = 64;
-    uint64 mMaxShaders          = 256;
-    uint64 mMaxResourceSets     = 64;
-    uint64 mMaxRenderTargets    = 64;
-};
+struct RendererDesc;
 
+// --------------------------------------
+// Render/Depth Target
 struct ClearValue
 {
     float mColor[4] = {0,0,0,0};
@@ -40,6 +34,12 @@ struct RenderTarget
     RenderTargetDesc mDesc = {};
 };
 
+void addRenderTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
+void addDepthTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
+void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
+
+// --------------------------------------
+// Swap chain
 #define MAX_SWAPCHAIN_IMAGES 8
 struct SwapChain
 {
@@ -58,6 +58,50 @@ struct SwapChain
 
     uint32 mImageCount  = 0;
     uint32 mActiveImage = 0;
+};
+
+void initSwapChain(Renderer* pRenderer, SwapChain* pSwapChain);
+void destroySwapChain(Renderer* pRenderer, SwapChain* pSwapChain);
+
+// --------------------------------------
+// Vertex Layout
+enum VertexAttrib
+{
+    ATTRIBUTE_FLOAT,
+    ATTRIBUTE_FLOAT2,
+    ATTRIBUTE_FLOAT3,
+    ATTRIBUTE_FLOAT4,
+    // TODO_DW: Compressed attributes (for normals and such)
+};
+
+#define MAX_VERTEX_ATTRIBUTES 8
+struct VertexLayoutDesc
+{
+    VertexAttrib mAttribs[MAX_VERTEX_ATTRIBUTES];
+    uint32 mCount = 0;
+};
+
+struct VertexLayout
+{
+    VertexLayoutDesc mDesc = {};
+
+    VkVertexInputBindingDescription mVkBinding = {};
+    VkVertexInputAttributeDescription mVkAttribs[MAX_VERTEX_ATTRIBUTES];
+};
+
+void initVertexLayout(VertexLayoutDesc desc, VertexLayout* pLayout);
+
+// --------------------------------------
+// Renderer
+
+struct RendererDesc
+{
+    uint64 mMaxBuffers          = 1024;
+    uint64 mMaxTextures         = 1024;
+    uint64 mMaxSamplers         = 64;
+    uint64 mMaxShaders          = 256;
+    uint64 mMaxResourceSets     = 64;
+    uint64 mMaxRenderTargets    = 64;
 };
 
 #define CONCURRENT_FRAMES 2
@@ -91,13 +135,6 @@ struct Renderer
     VkFence mVkFences[CONCURRENT_FRAMES];
     VkFence mVkImmediateFence = VK_NULL_HANDLE;
 };
-
-void initSwapChain(Renderer* pRenderer, SwapChain* pSwapChain);
-void destroySwapChain(Renderer* pRenderer, SwapChain* pSwapChain);
-
-void addRenderTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
-void addDepthTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
-void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
 
 void initRenderer(RendererDesc desc, Renderer* pRenderer);
 void destroyRenderer(Renderer* pRenderer);

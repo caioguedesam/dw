@@ -4,6 +4,8 @@
 
 struct Renderer;
 
+// --------------------------------------
+// Shader Resource
 enum ShaderResourceType
 {
     RESOURCE_UNIFORM_BUFFER         = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,

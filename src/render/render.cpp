@@ -203,6 +203,55 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget)
     *ppTarget = NULL;
 }
 
+void initVertexLayout(VertexLayoutDesc desc, VertexLayout* pLayout)
+{
+    ASSERT(pLayout);
+
+    pLayout->mDesc = desc;
+    pLayout->mVkBinding = {};
+    pLayout->mVkBinding.binding = 0;
+    pLayout->mVkBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    pLayout->mVkBinding.stride = 0;
+
+    for(uint32 i = 0; i < desc.mCount; i++)
+    {
+        VertexAttrib attr = desc.mAttribs[i];
+
+        pLayout->mVkAttribs[i] = {};
+        pLayout->mVkAttribs[i].binding = 0;
+        pLayout->mVkAttribs[i].location = i;
+        pLayout->mVkAttribs[i].offset = pLayout->mVkBinding.stride;
+
+        uint32 attrSize = 0;
+        switch(attr)
+        {
+            case ATTRIBUTE_FLOAT:
+            {
+                pLayout->mVkAttribs[i].format = VK_FORMAT_R32_SFLOAT;
+                attrSize = sizeof(float);
+            } break;
+            case ATTRIBUTE_FLOAT2:
+            {
+                pLayout->mVkAttribs[i].format = VK_FORMAT_R32G32_SFLOAT;
+                attrSize = 2 * sizeof(float);
+            } break;
+            case ATTRIBUTE_FLOAT3:
+            {
+                pLayout->mVkAttribs[i].format = VK_FORMAT_R32G32B32_SFLOAT;
+                attrSize = 3 * sizeof(float);
+            } break;
+            case ATTRIBUTE_FLOAT4:
+            {
+                pLayout->mVkAttribs[i].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                attrSize = 4 * sizeof(float);
+            } break;
+            default: ASSERTF(0, "Unsupported vertex attribute format");
+        }
+
+        pLayout->mVkBinding.stride += attrSize;
+    }
+}
+
 void initRenderer(RendererDesc desc, Renderer* pRenderer)
 {
     *pRenderer = {};
