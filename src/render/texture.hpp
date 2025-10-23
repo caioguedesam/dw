@@ -11,7 +11,7 @@ struct Buffer;
 // Texture
 enum ImageFormat
 {
-    FORMAT_INVALID              = VK_FORMAT_UNDEFINED,
+    FORMAT_UNDEFINED            = VK_FORMAT_UNDEFINED,
     FORMAT_R8_SRGB              = VK_FORMAT_R8_SRGB,
     FORMAT_RG8_SRGB             = VK_FORMAT_R8G8_SRGB,
     FORMAT_RGB8_SRGB            = VK_FORMAT_R8G8B8_SRGB,
@@ -61,7 +61,7 @@ enum TextureUsage : uint32
 
 struct TextureDesc
 {
-    ImageFormat mFormat = FORMAT_INVALID;
+    ImageFormat mFormat = FORMAT_UNDEFINED;
     ImageLayout mLayout = IMAGE_LAYOUT_UNDEFINED;
     TextureType mType   = TEXTURE_TYPE_2D;
     uint32 mUsage       = TEXTURE_USAGE_ANY;
