@@ -20,7 +20,7 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;   // TODO_DW: Revise this
 
     VkBuffer vkBuffer;
     VmaAllocation vkAlloc;
@@ -34,7 +34,7 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
     ASSERTVK(ret);
 
     (*ppBuffer)->mDesc = desc;
-    (*ppBuffer)->mVkHandle = vkBuffer;
+    (*ppBuffer)->mVkBuffer = vkBuffer;
     (*ppBuffer)->mVkAllocation = vkAlloc;
 
     if(pSrc)
@@ -50,7 +50,7 @@ void removeBuffer(Renderer* pRenderer, Buffer** ppBuffer)
 
     vmaDestroyBuffer(
             pRenderer->mVkAllocator,
-            (*ppBuffer)->mVkHandle,
+            (*ppBuffer)->mVkBuffer,
             (*ppBuffer)->mVkAllocation);
 
     **ppBuffer = {};

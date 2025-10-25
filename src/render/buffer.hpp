@@ -31,7 +31,7 @@ struct Buffer
 {
     BufferDesc mDesc = {};
 
-    VkBuffer        mVkHandle           = VK_NULL_HANDLE;
+    VkBuffer        mVkBuffer           = VK_NULL_HANDLE;
     VmaAllocation   mVkAllocation       = VK_NULL_HANDLE;
 };
 

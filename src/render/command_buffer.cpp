@@ -7,24 +7,21 @@ void initCommandBuffers(Renderer* pRenderer)
 {
     ASSERT(pRenderer);
 
-    uint32 count = 0;
+    VkCommandBuffer vkCommandBuffers[MAX_COMMAND_BUFFERS];
+    VkCommandBufferAllocateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    info.commandPool = pRenderer->mVkCommandPool;
+    info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    info.commandBufferCount = MAX_COMMAND_BUFFERS;
+    VkResult ret = vkAllocateCommandBuffers(pRenderer->mVkDevice, &info, vkCommandBuffers);
+    ASSERTVK(ret);
+
     for(uint32 i = 0; i < MAX_COMMAND_BUFFERS; i++)
     {
-        VkCommandBufferAllocateInfo info = {};
-        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        info.commandPool = pRenderer->mVkCommandPool;
-        info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        info.commandBufferCount = 1;
-        VkCommandBuffer vkCmd;
-        VkResult ret = vkAllocateCommandBuffers(pRenderer->mVkDevice, &info, &vkCmd);
-        ASSERTVK(ret);
-
         pRenderer->mCommandBuffers[i].mState = COMMAND_BUFFER_IDLE;
-        pRenderer->mCommandBuffers[i].mVkCmd = vkCmd;
+        pRenderer->mCommandBuffers[i].mVkCmd = vkCommandBuffers[i];
         pRenderer->mCommandBuffers[i].mVkFence = VK_NULL_HANDLE;
-        count++; 
     }
-    pRenderer->mCommandBufferCount = count;
 }
 
 CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
@@ -46,7 +43,7 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
     CommandBuffer* pOutCmd = NULL;
 
     // Find an idle command buffer
-    for(uint32 i = 0; i < pRenderer->mCommandBufferCount; i++)
+    for(uint32 i = 0; i < MAX_COMMAND_BUFFERS; i++)
     {
         CommandBuffer* pCmd = &pRenderer->mCommandBuffers[i];
         if(pCmd->mState == COMMAND_BUFFER_IDLE)
@@ -59,7 +56,7 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
     if(!pOutCmd)
     {
         // Look for a submitted command buffer, then reset it to idle if finished.
-        for(uint32 i = 0; i < pRenderer->mCommandBufferCount; i++)
+        for(uint32 i = 0; i < MAX_COMMAND_BUFFERS; i++)
         {
             CommandBuffer* pCmd = &pRenderer->mCommandBuffers[i];
             if(pCmd->mState == COMMAND_BUFFER_SUBMITTED)
@@ -109,8 +106,38 @@ void endCmd(CommandBuffer* pCmd)
     pCmd->mState = COMMAND_BUFFER_READY;
 }
 
+void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd)
+{
+    ASSERT(pRenderer);
+    ASSERT(pCmd && pCmd->mState == COMMAND_BUFFER_READY);
+
+    VkSubmitInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    info.commandBufferCount = 1;
+    info.pCommandBuffers = &pCmd->mVkCmd;
+
+    VkSemaphore vkRenderSemaphore = pRenderer->mVkRenderSemaphores[pRenderer->mActiveFrame];
+    VkSemaphore vkPresentSemaphore = pRenderer->mVkPresentSemaphores[pRenderer->mActiveFrame];
+
+    VkPipelineStageFlags vkWaitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    info.pWaitDstStageMask = &vkWaitStage;
+    info.waitSemaphoreCount = 1;
+    info.pWaitSemaphores = &vkPresentSemaphore;
+    info.signalSemaphoreCount = 1;
+    info.pSignalSemaphores = &vkRenderSemaphore;
+
+    VkResult ret = vkQueueSubmit(pRenderer->mVkQueue, 
+            1, 
+            &info, 
+            pCmd->mVkFence);
+    ASSERTVK(ret);
+
+    pCmd->mState = COMMAND_BUFFER_SUBMITTED;
+}
+
 void submitImmediateCmd(Renderer* pRenderer, CommandBuffer* pCmd)
 {
+    ASSERT(pRenderer);
     ASSERT(pCmd && pCmd->mState == COMMAND_BUFFER_READY);
 
     VkSubmitInfo info = {};

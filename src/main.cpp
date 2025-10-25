@@ -34,7 +34,7 @@ DW_MAIN()
     while(gApp.mRunning)
     {
         poll(&gApp);
-        //debugInput(&gApp);
+        // process load requests
         // update and render
     }
 

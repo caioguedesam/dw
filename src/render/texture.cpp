@@ -51,7 +51,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.usage = desc.mUsage;
     info.format = (VkFormat)desc.mFormat;
-    info.initialLayout = (VkImageLayout)desc.mLayout;
+    info.initialLayout = (VkImageLayout)desc.mBaseLayout;
     info.imageType = getVkImageType(desc.mType);
     info.extent.width = desc.mWidth;
     info.extent.height = desc.mHeight;
@@ -82,7 +82,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     viewInfo.viewType = getVkImageViewType(desc.mType);
     viewInfo.format = (VkFormat)desc.mFormat;
     viewInfo.subresourceRange.aspectMask =
-        desc.mUsage && TEXTURE_USAGE_DEPTH_TARGET
+        desc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
         ? VK_IMAGE_ASPECT_DEPTH_BIT
         : VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
@@ -187,4 +187,90 @@ void removeSampler(Renderer* pRenderer, Sampler** ppSampler)
 uint32 getMaxMipCount(uint32 w, uint32 h)
 {
     return (uint32)(floorf(log2f(MAX(w, h))));
+}
+
+void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mipFilter)
+{
+    // Texture format must support linear blit (can be queried with VkPhysicalDeviceProperties)
+    
+    // Change all mips to TRANSFER_DST
+    TextureBarrier barrier = {};
+    barrier.pTexture = pTexture;
+    barrier.mOldLayout = pTexture->mDesc.mBaseLayout;
+    barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_DST;
+    barrier.mStartMip = 0;
+    barrier.mMipCount = pTexture->mDesc.mMipCount;
+    cmdTextureBarrier(pCmd, barrier);
+
+    // For each mip, blit from past level
+    int32 mipWidth = pTexture->mDesc.mWidth;
+    int32 mipHeight = pTexture->mDesc.mHeight;
+    for(uint32 i = 1; i < pTexture->mDesc.mMipCount; i++)
+    {
+        // Transition past mip to TRANSFER_SRC
+        barrier.mOldLayout = IMAGE_LAYOUT_TRANSFER_DST;
+        barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_SRC;
+        barrier.mStartMip = i - 1;
+        barrier.mMipCount = 1;
+        cmdTextureBarrier(pCmd, barrier);
+
+        // Blit
+        VkImageBlit blitRegion = {};
+        blitRegion.srcOffsets[0] = {0, 0, 0};
+        blitRegion.srcOffsets[1] = {mipWidth, mipHeight, 1};
+        blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.mipLevel = i - 1;
+        blitRegion.srcSubresource.baseArrayLayer = 0;
+        blitRegion.srcSubresource.layerCount = 1;
+        blitRegion.dstOffsets[0] = {0, 0, 0};
+        blitRegion.dstOffsets[1] = {mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1};
+        blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.mipLevel = i;
+        blitRegion.dstSubresource.baseArrayLayer = 0;
+        blitRegion.dstSubresource.layerCount = 1;
+        vkCmdBlitImage(pCmd->mVkCmd,
+                pTexture->mVkImage,
+                (VkImageLayout)IMAGE_LAYOUT_TRANSFER_SRC,
+                pTexture->mVkImage,
+                (VkImageLayout)IMAGE_LAYOUT_TRANSFER_DST,
+                1, &blitRegion,
+                (VkFilter)mipFilter);
+
+        if(mipWidth > 1) mipWidth /= 2;
+        if(mipHeight > 1) mipHeight /= 2;
+    }
+
+    // All mips should finish in TRANSFER_SRC layout.
+    barrier.mOldLayout = IMAGE_LAYOUT_TRANSFER_DST;
+    barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_SRC;
+    barrier.mStartMip = pTexture->mDesc.mMipCount - 1;
+    barrier.mMipCount = 1;
+    cmdTextureBarrier(pCmd, barrier);
+}
+
+void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc)
+{
+    ASSERT(pCmd && pDst && pSrc);
+
+    VkBufferImageCopy region = {};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;   // TODO_DW: Is there a case where I want to copy buffer contents to mips?
+    region.imageSubresource.baseArrayLayer = 0;     // TODO_DW: Texture arrays
+    region.imageSubresource.layerCount = 1;
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent =
+    {
+        pDst->mDesc.mWidth,
+        pDst->mDesc.mHeight,
+        pDst->mDesc.mDepth
+    };
+
+    vkCmdCopyBufferToImage(pCmd->mVkCmd, 
+            pSrc->mVkBuffer,
+            pDst->mVkImage, 
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+            1, &region);
 }

@@ -29,7 +29,7 @@ void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path,
     desc.mMipCount = getMaxMipCount(width, height);
     desc.mType = TEXTURE_TYPE_2D;
     desc.mFormat = FORMAT_RGBA8_SRGB;
-    desc.mLayout = IMAGE_LAYOUT_UNDEFINED;
+    desc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;
     desc.mUsage = TEXTURE_USAGE_SAMPLED
         | TEXTURE_USAGE_TRANSFER_DST;
 

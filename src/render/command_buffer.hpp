@@ -28,4 +28,5 @@ void initCommandBuffers(Renderer* pRenderer);
 CommandBuffer* getCmd(Renderer* pRenderer, bool immediate = false);
 void beginCmd(CommandBuffer* pCmd);
 void endCmd(CommandBuffer* pCmd);
+void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd);
 void submitImmediateCmd(Renderer* pRenderer, CommandBuffer* pCmd);

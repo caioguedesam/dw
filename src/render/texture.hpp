@@ -61,10 +61,10 @@ enum TextureUsage : uint32
 
 struct TextureDesc
 {
-    ImageFormat mFormat = FORMAT_UNDEFINED;
-    ImageLayout mLayout = IMAGE_LAYOUT_UNDEFINED;
-    TextureType mType   = TEXTURE_TYPE_2D;
-    uint32 mUsage       = TEXTURE_USAGE_ANY;
+    ImageFormat mFormat         = FORMAT_UNDEFINED;
+    ImageLayout mBaseLayout     = IMAGE_LAYOUT_UNDEFINED;
+    TextureType mType           = TEXTURE_TYPE_2D;
+    uint32 mUsage               = TEXTURE_USAGE_ANY;
 
     uint32 mWidth       = 0;
     uint32 mHeight      = 0;
@@ -86,12 +86,6 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
 
 uint32 getMaxMipCount(uint32 w, uint32 h);
-
-// TODO_DW: After command buffers
-void cmdBarrier(CommandBuffer* pCmd, Texture* pTexture, ImageLayout oldLayout, ImageLayout newLayout);
-void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture);
-void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc);
-void cmdClearTexture(CommandBuffer* pCmd, Texture* pTexture, float r, float g, float b, float a);
 
 // --------------------------------------
 // Sampler
@@ -136,3 +130,8 @@ struct Sampler
 
 void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler);
 void removeSampler(Renderer* pRenderer, Sampler** ppSampler);
+
+// --------------------------------------
+// Render Commands
+void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mipFilter);
+void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc);

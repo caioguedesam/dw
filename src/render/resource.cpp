@@ -98,7 +98,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
             {
                 Buffer* pBuffer = (Buffer*)res.pData;
                 vkBufferInfos[cursor] = {};
-                vkBufferInfos[cursor].buffer = pBuffer->mVkHandle;
+                vkBufferInfos[cursor].buffer = pBuffer->mVkBuffer;
                 vkBufferInfos[cursor].offset = 0;
                 vkBufferInfos[cursor].range = pBuffer->mDesc.mSize;
                 vkWrites[i].pBufferInfo = &vkBufferInfos[cursor];
@@ -113,7 +113,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
                     Texture* pTexture = &pStart[j];
                     vkImageInfos[cursor] = {};
                     vkImageInfos[cursor].imageView = pTexture->mVkImageView;
-                    vkImageInfos[cursor].imageLayout = (VkImageLayout)pTexture->mDesc.mLayout;
+                    vkImageInfos[cursor].imageLayout = (VkImageLayout)pTexture->mDesc.mBaseLayout;
                     vkImageInfos[cursor].sampler = VK_NULL_HANDLE;
                     cursor++;
                 }

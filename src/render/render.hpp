@@ -1,5 +1,6 @@
 #pragma once
 #define VK_USE_PLATFORM_WIN32_KHR
+#include "../core/app.hpp"
 #include "../core/memory.hpp"
 #include "texture.hpp"
 #include "shader.hpp"
@@ -13,11 +14,75 @@
 struct RendererDesc;
 
 // --------------------------------------
+// Barriers
+
+enum PipelineStage
+{
+    PIPELINE_STAGE_TOP                  = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+    PIPELINE_STAGE_VERTEX_INPUT         = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+    PIPELINE_STAGE_VERTEX_SHADER        = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+    PIPELINE_STAGE_FRAGMENT_SHADER      = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    PIPELINE_STAGE_COMPUTE_SHADER       = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+    PIPELINE_STAGE_COLOR_OUTPUT         = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    PIPELINE_STAGE_TRANSFER             = VK_PIPELINE_STAGE_TRANSFER_BIT,
+    PIPELINE_STAGE_BOTTOM               = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+    PIPELINE_STAGE_ALL                  = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+};
+
+enum MemoryAccess : uint32
+{
+    MEMORY_ACCESS_NONE                  = VK_ACCESS_NONE,
+    MEMORY_ACCESS_SHADER_READ           = VK_ACCESS_SHADER_READ_BIT,
+    MEMORY_ACCESS_SHADER_WRITE          = VK_ACCESS_SHADER_WRITE_BIT,
+    MEMORY_ACCESS_TRANSFER_READ         = VK_ACCESS_TRANSFER_READ_BIT,
+    MEMORY_ACCESS_TRANSFER_WRITE        = VK_ACCESS_TRANSFER_WRITE_BIT,
+    MEMORY_ACCESS_COLOR_OUTPUT_READ     = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT,
+    MEMORY_ACCESS_COLOR_OUTPUT_WRITE    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    MEMORY_ACCESS_ALL_READS             = VK_ACCESS_MEMORY_READ_BIT,
+    MEMORY_ACCESS_ALL_WRITES            = VK_ACCESS_MEMORY_WRITE_BIT,
+};
+
+struct Barrier
+{
+    PipelineStage   mSrcStage   = PIPELINE_STAGE_ALL;
+    PipelineStage   mDstStage   = PIPELINE_STAGE_ALL;
+    MemoryAccess    mSrcAccess  = MEMORY_ACCESS_ALL_WRITES;
+    MemoryAccess    mDstAccess  = MEMORY_ACCESS_ALL_READS;
+};
+
+struct TextureBarrier
+{
+    Texture*        pTexture    = NULL;
+    ImageLayout     mOldLayout  = IMAGE_LAYOUT_UNDEFINED;
+    ImageLayout     mNewLayout  = IMAGE_LAYOUT_UNDEFINED;
+    uint32          mStartMip   = 0;
+    uint32          mMipCount   = 0;
+
+    PipelineStage   mSrcStage   = PIPELINE_STAGE_ALL;
+    PipelineStage   mDstStage   = PIPELINE_STAGE_ALL;
+    MemoryAccess    mSrcAccess  = MEMORY_ACCESS_ALL_WRITES;
+    MemoryAccess    mDstAccess  = MEMORY_ACCESS_ALL_READS;
+};
+
+// --------------------------------------
 // Render/Depth Target
+enum LoadOp
+{
+    LOAD_OP_DONT_CARE   = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+    LOAD_OP_LOAD        = VK_ATTACHMENT_LOAD_OP_LOAD,
+    LOAD_OP_CLEAR       = VK_ATTACHMENT_LOAD_OP_CLEAR, 
+};
+
+enum StoreOp
+{
+    STORE_OP_DONT_CARE  = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+    STORE_OP_STORE      = VK_ATTACHMENT_STORE_OP_STORE,
+};
+
 struct ClearValue
 {
     float mColor[4] = {0,0,0,0};
-    float mDepth = 1;
+    float mDepth = 0;
 };
 
 struct RenderTargetDesc
@@ -39,6 +104,21 @@ struct RenderTarget
 void addRenderTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
 void addDepthTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
+
+struct RenderTargetBinding
+{
+    RenderTarget* pTarget   = NULL;
+    LoadOp mLoadOp          = LOAD_OP_LOAD;
+    StoreOp mStoreOp        = STORE_OP_STORE;
+};
+
+#define MAX_PIPELINE_RENDER_TARGETS 8
+struct RenderTargetBindDesc
+{
+    uint32 mColorCount = 0;
+    RenderTargetBinding mColorBindings[MAX_PIPELINE_RENDER_TARGETS];
+    RenderTargetBinding mDepthBinding;
+};
 
 // --------------------------------------
 // Swap chain
@@ -159,7 +239,6 @@ enum ColorComponent : uint32
     COMPONENT_A   = VK_COLOR_COMPONENT_A_BIT,
 };
 
-#define MAX_PIPELINE_RENDER_TARGETS 8
 #define MAX_PIPELINE_RESOURCE_SETS 16
 struct GraphicsPipelineDesc
 {
@@ -236,6 +315,8 @@ void removePipeline(Renderer* pRenderer, ComputePipeline** ppPipeline);
 // Renderer
 struct RendererDesc
 {
+    App* pApp = NULL;
+
     uint64 mMaxBuffers              = 1024;
     uint64 mMaxTextures             = 1024;
     uint64 mMaxSamplers             = 64;
@@ -261,21 +342,25 @@ struct Renderer
 
     RendererDesc mDesc = {};
 
+    SwapChain mSwapChain = {};
     CommandBuffer mCommandBuffers[MAX_COMMAND_BUFFERS];
-    uint32 mCommandBufferCount = 0;
-
     uint32 mActiveFrame = 0;
 
     // Vulkan
     VkInstance mVkInstance = VK_NULL_HANDLE;
+#if DW_DEBUG
+    VkDebugUtilsMessengerEXT mVkDebugMessenger = VK_NULL_HANDLE;
+#endif
     VkSurfaceKHR mVkSurface = VK_NULL_HANDLE;
+    VkPhysicalDevice mVkPhysicalDevice = VK_NULL_HANDLE;
     VkPhysicalDeviceProperties mVkDeviceProperties = {};
     VkDevice mVkDevice = VK_NULL_HANDLE;
-    VkPhysicalDevice mVkPhysicalDevice = VK_NULL_HANDLE;
-    VmaAllocator mVkAllocator = VK_NULL_HANDLE;
     VkQueue mVkQueue = VK_NULL_HANDLE;
-    VkCommandPool mVkCommandPool = VK_NULL_HANDLE;
+    VmaAllocator mVkAllocator = VK_NULL_HANDLE;
     VkDescriptorPool mVkDescriptorPool = VK_NULL_HANDLE;
+    VkCommandPool mVkCommandPool = VK_NULL_HANDLE;
+    VkSemaphore mVkRenderSemaphores[CONCURRENT_FRAMES];
+    VkSemaphore mVkPresentSemaphores[CONCURRENT_FRAMES];
     VkFence mVkFences[CONCURRENT_FRAMES];
     VkFence mVkImmediateFence = VK_NULL_HANDLE;
 };
@@ -284,6 +369,32 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer);
 void destroyRenderer(Renderer* pRenderer);
 
 void waitForCommands(Renderer* pRenderer);
+void acquireNextImage(Renderer* pRenderer, uint32 frame);
+void present(Renderer* pRenderer, uint32 frame);
 
-void beginFrame(Renderer* pRenderer);
-void endFrame(Renderer* pRenderer);
+// --------------------------------------
+// Render Commands
+void cmdBarrier(CommandBuffer* pCmd, Barrier barrier);
+void cmdTextureBarrier(CommandBuffer* pCmd, TextureBarrier barrier);
+void cmdSwapChainBarrier(CommandBuffer* pCmd, SwapChain* pSwapChain, ImageLayout newLayout);
+void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);
+void cmdUnbindRenderTargets(CommandBuffer* pCmd);
+void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
+void cmdBindComputePipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
+void cmdBindResourceSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        ShaderResourceSet* pResourceSet, uint32 setBinding);
+void cmdBindResourceSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        ShaderResourceSet* pResourceSet, uint32 setBinding);
+void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
+void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdSetScissor(CommandBuffer* pCmd, float x, float y, float w, float h);
+void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
+void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
+void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount);
+void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount);
+void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z);
+void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc);
+// TODO_DW: CONTINUE Implement these
