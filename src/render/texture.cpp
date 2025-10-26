@@ -57,6 +57,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     info.extent.height = desc.mHeight;
     info.extent.depth = desc.mDepth;
     info.samples = (VkSampleCountFlagBits)desc.mSamples;
+    info.mipLevels = desc.mMipCount;
     info.arrayLayers = 1;   // TODO_DW: TEXTURE_ARRAY
     info.tiling = VK_IMAGE_TILING_OPTIMAL;
     info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -200,7 +201,7 @@ void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mip
     barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_DST;
     barrier.mStartMip = 0;
     barrier.mMipCount = pTexture->mDesc.mMipCount;
-    cmdTextureBarrier(pCmd, barrier);
+    cmdTextureBarrier(pCmd, 1, &barrier);
 
     // For each mip, blit from past level
     int32 mipWidth = pTexture->mDesc.mWidth;
@@ -212,7 +213,7 @@ void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mip
         barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_SRC;
         barrier.mStartMip = i - 1;
         barrier.mMipCount = 1;
-        cmdTextureBarrier(pCmd, barrier);
+        cmdTextureBarrier(pCmd, 1, &barrier);
 
         // Blit
         VkImageBlit blitRegion = {};
@@ -245,7 +246,7 @@ void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mip
     barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_SRC;
     barrier.mStartMip = pTexture->mDesc.mMipCount - 1;
     barrier.mMipCount = 1;
-    cmdTextureBarrier(pCmd, barrier);
+    cmdTextureBarrier(pCmd, 1, &barrier);
 }
 
 void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc)

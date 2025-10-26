@@ -9,9 +9,10 @@
 #include "vulkan/vulkan_core.h"
 #include "vma/vk_mem_alloc.h"
 
-#define ASSERTVK(EXPR) ASSERT((EXPR) == VK_SUCCESS)
+const char* vkResultToStr(VkResult result);
 
-struct RendererDesc;
+#define ASSERTVK(EXPR) ASSERTF((EXPR) == VK_SUCCESS, \
+        "[VULKAN] - %s", vkResultToStr((EXPR)))
 
 // --------------------------------------
 // Barriers
@@ -64,6 +65,20 @@ struct TextureBarrier
     MemoryAccess    mDstAccess  = MEMORY_ACCESS_ALL_READS;
 };
 
+struct RenderTarget;
+struct RenderTargetBarrier
+{
+    RenderTarget*   pTarget     = NULL;
+    ImageLayout     mOldLayout  = IMAGE_LAYOUT_UNDEFINED;
+    ImageLayout     mNewLayout  = IMAGE_LAYOUT_UNDEFINED;
+
+    PipelineStage   mSrcStage   = PIPELINE_STAGE_ALL;
+    PipelineStage   mDstStage   = PIPELINE_STAGE_ALL;
+    MemoryAccess    mSrcAccess  = MEMORY_ACCESS_ALL_WRITES;
+    MemoryAccess    mDstAccess  = MEMORY_ACCESS_ALL_READS;
+};
+
+
 // --------------------------------------
 // Render/Depth Target
 enum LoadOp
@@ -101,9 +116,11 @@ struct RenderTarget
     RenderTargetDesc mDesc = {};
 };
 
-void addRenderTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
-void addDepthTarget(Renderer* pRenderer, RendererDesc desc, ClearValue clear, RenderTarget** ppTarget);
+void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
+void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
+
+ImageLayout getImageLayout(RenderTarget* pTarget);
 
 struct RenderTargetBinding
 {
@@ -276,7 +293,10 @@ struct GraphicsPipelineDesc
     BlendFactor mSrcAlphaFactor = BLEND_FACTOR_ZERO;
     BlendFactor mDstAlphaFactor = BLEND_FACTOR_ZERO;
     BlendOp mBlendOp            = BLEND_ADD;
-    uint32 mBlendMask           = 0;
+    uint32 mBlendMask           = COMPONENT_R
+                                | COMPONENT_G
+                                | COMPONENT_B
+                                | COMPONENT_A;
 };
 
 struct GraphicsPipeline
@@ -370,12 +390,13 @@ void destroyRenderer(Renderer* pRenderer);
 
 void waitForCommands(Renderer* pRenderer);
 void acquireNextImage(Renderer* pRenderer, uint32 frame);
-void present(Renderer* pRenderer, uint32 frame);
+void present(Renderer* pRenderer);
 
 // --------------------------------------
 // Render Commands
-void cmdBarrier(CommandBuffer* pCmd, Barrier barrier);
-void cmdTextureBarrier(CommandBuffer* pCmd, TextureBarrier barrier);
+void cmdBarrier(CommandBuffer* pCmd, uint32 barrierCount, Barrier* pBarriers);
+void cmdTextureBarrier(CommandBuffer* pCmd, uint32 barrierCount, TextureBarrier* pBarriers);
+void cmdRenderTargetBarrier(CommandBuffer* pCmd, uint32 barrierCount, RenderTargetBarrier* pBarriers);
 void cmdSwapChainBarrier(CommandBuffer* pCmd, SwapChain* pSwapChain, ImageLayout newLayout);
 void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);

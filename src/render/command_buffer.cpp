@@ -112,7 +112,7 @@ void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd)
     ASSERT(pCmd && pCmd->mState == COMMAND_BUFFER_READY);
 
     VkSubmitInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+    info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     info.commandBufferCount = 1;
     info.pCommandBuffers = &pCmd->mVkCmd;
 

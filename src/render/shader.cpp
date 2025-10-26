@@ -41,6 +41,6 @@ void removeShader(Renderer* pRenderer, Shader** ppShader)
 
     **ppShader = {};
 
-    poolFree(&pRenderer->poolShaders, ppShader);
+    poolFree(&pRenderer->poolShaders, *ppShader);
     *ppShader = NULL;
 }

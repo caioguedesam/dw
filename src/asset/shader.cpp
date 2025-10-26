@@ -100,6 +100,8 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, String path, S
 
     ShaderDesc desc = {};
     desc.mType = type;
+    desc.mBytecodeSize = bytecodeLen;
+    desc.pBytecode = (uint32*)bytecode;
     addShader(pRenderer, desc, ppOut);
 
     shaderc_result_release(compiled);

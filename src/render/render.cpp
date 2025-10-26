@@ -9,6 +9,54 @@
 #include "vulkan/vulkan_core.h"
 #include "vulkan/vulkan_win32.h"
 
+const char* vkResultToStr(VkResult result)
+{
+    switch (result)
+    {
+        case VK_SUCCESS: return "VK_SUCCESS";
+        case VK_NOT_READY: return "VK_NOT_READY";
+        case VK_TIMEOUT: return "VK_TIMEOUT";
+        case VK_EVENT_SET: return "VK_EVENT_SET";
+        case VK_EVENT_RESET: return "VK_EVENT_RESET";
+        case VK_INCOMPLETE: return "VK_INCOMPLETE";
+        case VK_ERROR_OUT_OF_HOST_MEMORY: return "VK_ERROR_OUT_OF_HOST_MEMORY";
+        case VK_ERROR_OUT_OF_DEVICE_MEMORY: return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
+        case VK_ERROR_INITIALIZATION_FAILED: return "VK_ERROR_INITIALIZATION_FAILED";
+        case VK_ERROR_DEVICE_LOST: return "VK_ERROR_DEVICE_LOST";
+        case VK_ERROR_MEMORY_MAP_FAILED: return "VK_ERROR_MEMORY_MAP_FAILED";
+        case VK_ERROR_LAYER_NOT_PRESENT: return "VK_ERROR_LAYER_NOT_PRESENT";
+        case VK_ERROR_EXTENSION_NOT_PRESENT: return "VK_ERROR_EXTENSION_NOT_PRESENT";
+        case VK_ERROR_FEATURE_NOT_PRESENT: return "VK_ERROR_FEATURE_NOT_PRESENT";
+        case VK_ERROR_INCOMPATIBLE_DRIVER: return "VK_ERROR_INCOMPATIBLE_DRIVER";
+        case VK_ERROR_TOO_MANY_OBJECTS: return "VK_ERROR_TOO_MANY_OBJECTS";
+        case VK_ERROR_FORMAT_NOT_SUPPORTED: return "VK_ERROR_FORMAT_NOT_SUPPORTED";
+        case VK_ERROR_FRAGMENTED_POOL: return "VK_ERROR_FRAGMENTED_POOL";
+        case VK_ERROR_UNKNOWN: return "VK_ERROR_UNKNOWN";
+        case VK_ERROR_OUT_OF_POOL_MEMORY: return "VK_ERROR_OUT_OF_POOL_MEMORY";
+        case VK_ERROR_INVALID_EXTERNAL_HANDLE: return "VK_ERROR_INVALID_EXTERNAL_HANDLE";
+        case VK_ERROR_FRAGMENTATION: return "VK_ERROR_FRAGMENTATION";
+        case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS";
+        case VK_PIPELINE_COMPILE_REQUIRED: return "VK_PIPELINE_COMPILE_REQUIRED";
+        case VK_ERROR_SURFACE_LOST_KHR: return "VK_ERROR_SURFACE_LOST_KHR";
+        case VK_ERROR_NATIVE_WINDOW_IN_USE_KHR: return "VK_ERROR_NATIVE_WINDOW_IN_USE_KHR";
+        case VK_SUBOPTIMAL_KHR: return "VK_SUBOPTIMAL_KHR";
+        case VK_ERROR_OUT_OF_DATE_KHR: return "VK_ERROR_OUT_OF_DATE_KHR";
+        case VK_ERROR_INCOMPATIBLE_DISPLAY_KHR: return "VK_ERROR_INCOMPATIBLE_DISPLAY_KHR";
+        case VK_ERROR_VALIDATION_FAILED_EXT: return "VK_ERROR_VALIDATION_FAILED_EXT";
+        case VK_ERROR_INVALID_SHADER_NV: return "VK_ERROR_INVALID_SHADER_NV";
+        case VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT: return "VK_ERROR_INVALID_DRM_FORMAT_MODIFIER_PLANE_LAYOUT_EXT";
+        case VK_ERROR_NOT_PERMITTED_KHR: return "VK_ERROR_NOT_PERMITTED_KHR";
+        case VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT: return "VK_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT";
+        case VK_THREAD_IDLE_KHR: return "VK_THREAD_IDLE_KHR";
+        case VK_THREAD_DONE_KHR: return "VK_THREAD_DONE_KHR";
+        case VK_OPERATION_DEFERRED_KHR: return "VK_OPERATION_DEFERRED_KHR";
+        case VK_OPERATION_NOT_DEFERRED_KHR: return "VK_OPERATION_NOT_DEFERRED_KHR";
+        case VK_ERROR_COMPRESSION_EXHAUSTED_EXT: return "VK_ERROR_COMPRESSION_EXHAUSTED_EXT";
+        case VK_RESULT_MAX_ENUM: return "VK_RESULT_MAX_ENUM";
+        default: return "??????";
+    }
+}
+
 // Helper to match c strings in Vulkan property-style structs,
 // e.g: int32 match = FIND_STRING_IN_PROPERTIES(props, propName, "myPropName");
 #define FIND_STRING_IN_VK_PROPERTIES(ARR, MEMBER_NAME, MATCH) \
@@ -164,7 +212,7 @@ void destroySwapChain(Renderer* pRenderer, SwapChain* pSwapChain)
     *pSwapChain = {};
 }
 
-void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, ClearValue clear, RenderTarget** ppTarget)
+void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget)
 {
     ASSERT(pRenderer && ppTarget);
     ASSERT(*ppTarget == NULL);
@@ -175,7 +223,7 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, ClearValue clea
 
     TextureDesc textureDesc = {};
     textureDesc.mFormat = desc.mFormat;
-    textureDesc.mBaseLayout = IMAGE_LAYOUT_COLOR_OUTPUT;
+    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
     textureDesc.mType = TEXTURE_TYPE_2D;
     textureDesc.mUsage =
         TEXTURE_USAGE_COLOR_TARGET |
@@ -183,6 +231,7 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, ClearValue clea
         TEXTURE_USAGE_TRANSFER_DST;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
+    textureDesc.mDepth = 1;
     textureDesc.mMipCount = 1;
     textureDesc.mSamples = desc.mSamples;
     Texture* pTexture = NULL;
@@ -193,7 +242,7 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, ClearValue clea
     (*ppTarget)->mDesc = desc;
 }
 
-void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, ClearValue clear, RenderTarget** ppTarget)
+void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget)
 {
     ASSERT(pRenderer && ppTarget);
     ASSERT(*ppTarget == NULL);
@@ -234,6 +283,12 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget)
 
     poolFree(&pRenderer->poolRenderTargets, *ppTarget);
     *ppTarget = NULL;
+}
+
+ImageLayout getImageLayout(RenderTarget* pTarget)
+{
+    ASSERT(pTarget);
+    return pTarget->pTexture->mDesc.mBaseLayout;
 }
 
 void initVertexLayout(VertexLayoutDesc desc, VertexLayout* pLayout)
@@ -296,10 +351,12 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
 
     // Shader stages
     VkPipelineShaderStageCreateInfo shaderInfos[2];
+    shaderInfos[0] = {};
     shaderInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderInfos[0].pName = "main";
     shaderInfos[0].module = desc.pVS->mVkShader;
     shaderInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shaderInfos[1] = {};
     shaderInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shaderInfos[1].pName = "main";
     shaderInfos[1].module = desc.pFS->mVkShader;
@@ -314,10 +371,20 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     // Vertex input
     VkPipelineVertexInputStateCreateInfo viInfo = {};
     viInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    viInfo.vertexBindingDescriptionCount = 1;
-    viInfo.pVertexBindingDescriptions = &desc.mVertexLayout.mVkBinding;
-    viInfo.vertexAttributeDescriptionCount = desc.mVertexLayout.mDesc.mCount;
-    viInfo.pVertexAttributeDescriptions = desc.mVertexLayout.mVkAttribs;
+    if(desc.mVertexLayout.mDesc.mCount)
+    {
+        viInfo.vertexBindingDescriptionCount = 1;
+        viInfo.pVertexBindingDescriptions = &desc.mVertexLayout.mVkBinding;
+        viInfo.vertexAttributeDescriptionCount = desc.mVertexLayout.mDesc.mCount;
+        viInfo.pVertexAttributeDescriptions = desc.mVertexLayout.mVkAttribs;
+    }
+    else
+    {
+        viInfo.vertexBindingDescriptionCount = 0;
+        viInfo.pVertexBindingDescriptions = NULL;
+        viInfo.vertexAttributeDescriptionCount = 0;
+        viInfo.pVertexAttributeDescriptions = NULL;
+    }
 
     // Dynamic state (viewport, scissor, depth settings)
     VkDynamicState dynamicStates[] =
@@ -417,7 +484,7 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     info.pColorBlendState = &blendInfo;
     info.pDepthStencilState = &depthInfo;
     info.layout = vkLayout;
-    info.renderPass = NULL;
+    info.renderPass = VK_NULL_HANDLE;
     VkPipeline vkPipeline;
     ret = vkCreateGraphicsPipelines(pRenderer->mVkDevice, 
             VK_NULL_HANDLE, 
@@ -569,7 +636,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         ASSERT(layerCount);
         VkLayerProperties layers[layerCount];
         vkEnumerateInstanceLayerProperties(&layerCount, layers);
-        for(uint32 i = 0; i < layerCount; i++)
+        for(uint32 i = 0; i < ARR_LEN(pLayerNames); i++)
         {
             int32 match = FIND_STRING_IN_VK_PROPERTIES(layers, layerName, pLayerNames[i]);
             ASSERT(match != -1);
@@ -626,7 +693,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     const char* pDeviceExtensions[] =
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
+        //VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
     };
     {
         // Selecting the first device to match requirements (might select least powerful GPU)
@@ -741,14 +808,19 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         indexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
         indexingFeatures.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
 
+        VkPhysicalDeviceDynamicRenderingFeatures dynamicFeature = {};
+        dynamicFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+        dynamicFeature.dynamicRendering = VK_TRUE;
+        dynamicFeature.pNext = &indexingFeatures;
+
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        deviceInfo.pNext = &dynamicFeature;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
         deviceInfo.pEnabledFeatures = &features;
         deviceInfo.enabledExtensionCount = ARR_LEN(pDeviceExtensions);
         deviceInfo.ppEnabledExtensionNames = pDeviceExtensions;
-        deviceInfo.pNext = &indexingFeatures;
 
         VkResult ret = vkCreateDevice(vkPhysicalDevice, &deviceInfo, NULL, &vkDevice);
         ASSERTVK(ret);
@@ -769,7 +841,8 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     }
 
     // Initializing descriptor pools for allocating descriptors
-    uint32 maxPoolSize = 100;
+    uint32 maxPoolSize = 1000;
+    uint32 maxSets = 1000;
     VkDescriptorPool vkDescriptorPool;
     {
         VkDescriptorPoolSize poolSizes[] =
@@ -785,6 +858,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         info.poolSizeCount = ARR_LEN(poolSizes);
         info.pPoolSizes = poolSizes;
+        info.maxSets = maxSets;
         info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
         VkResult ret = vkCreateDescriptorPool(vkDevice, &info, NULL, &vkDescriptorPool);
         ASSERTVK(ret);
@@ -827,6 +901,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         ASSERTVK(ret);
     }
 
+    pRenderer->mDesc = desc;
     pRenderer->mVkInstance = vkInstance;
 #if DW_DEBUG
     pRenderer->mVkDebugMessenger = vkMessenger;
@@ -907,7 +982,7 @@ void acquireNextImage(Renderer* pRenderer, uint32 frame)
     ASSERTVK(ret);      // TODO_DW: Verify if load requests handles out of date swapchain before this.
 }
 
-void present(Renderer* pRenderer, uint32 frame)
+void present(Renderer* pRenderer)
 {
     ASSERT(pRenderer);
     ASSERT(pRenderer->mSwapChain.mVkImageLayouts[pRenderer->mSwapChain.mActiveImage] == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -925,65 +1000,97 @@ void present(Renderer* pRenderer, uint32 frame)
     ASSERTVK(ret);      // TODO_DW: Verify if load requests handles out of date swapchain before this.
 }
 
-void cmdBarrier(CommandBuffer* pCmd, Barrier barrier)
+void cmdBarrier(CommandBuffer* pCmd, uint32 barrierCount, Barrier* pBarriers)
 {
-    ASSERT(pCmd);
-    VkMemoryBarrier vkBarrier = {};
-    vkBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    vkBarrier.srcAccessMask = (VkAccessFlags)barrier.mSrcAccess;
-    vkBarrier.dstAccessMask = (VkAccessFlags)barrier.mDstAccess;
-    vkCmdPipelineBarrier(pCmd->mVkCmd, 
-            (VkPipelineStageFlags)barrier.mSrcStage, 
-            (VkPipelineStageFlags)barrier.mDstStage, 
-            0, 
-            1, &vkBarrier, 
-            0, NULL, 
-            0, NULL);
+    ASSERT(pCmd && barrierCount && pBarriers);
+    for(uint32 i = 0; i < barrierCount; i++)
+    {
+        VkMemoryBarrier vkBarrier;
+        vkBarrier = {};
+        vkBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        vkBarrier.srcAccessMask = (VkAccessFlags)pBarriers[i].mSrcAccess;
+        vkBarrier.dstAccessMask = (VkAccessFlags)pBarriers[i].mDstAccess;
+
+        vkCmdPipelineBarrier(pCmd->mVkCmd, 
+                (VkPipelineStageFlags)pBarriers[i].mSrcStage, 
+                (VkPipelineStageFlags)pBarriers[i].mDstStage, 
+                0, 
+                1, &vkBarrier, 
+                0, NULL, 
+                0, NULL);
+    }
 }
 
-void cmdTextureBarrier(CommandBuffer* pCmd, TextureBarrier barrier)
+void cmdTextureBarrier(CommandBuffer* pCmd, uint32 barrierCount, TextureBarrier* pBarriers)
 {
-    ASSERT(pCmd && barrier.pTexture);
+    ASSERT(pCmd && barrierCount && pBarriers);
 
-    VkImageMemoryBarrier vkBarrier = {};
-    vkBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    vkBarrier.oldLayout = (VkImageLayout)barrier.mOldLayout;
-    vkBarrier.newLayout = (VkImageLayout)barrier.mNewLayout;
-    vkBarrier.srcAccessMask = (VkAccessFlags)barrier.mSrcAccess;
-    vkBarrier.dstAccessMask = (VkAccessFlags)barrier.mDstAccess;
-    vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    vkBarrier.image = barrier.pTexture->mVkImage;
-    vkBarrier.subresourceRange.aspectMask = 
-        barrier.pTexture->mDesc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
-        ? VK_IMAGE_ASPECT_DEPTH_BIT
-        : VK_IMAGE_ASPECT_COLOR_BIT;
-    // Transition all mips by default.
-    if(barrier.mMipCount == 0)
+    for(uint32 i = 0; i < barrierCount; i++)
     {
-        vkBarrier.subresourceRange.baseMipLevel = 0;
-        vkBarrier.subresourceRange.levelCount = barrier.pTexture->mDesc.mMipCount;
-    }
-    else
-    {
-        vkBarrier.subresourceRange.baseMipLevel = barrier.mStartMip;
-        vkBarrier.subresourceRange.levelCount = barrier.mMipCount;
-    }
-    vkBarrier.subresourceRange.baseArrayLayer = 0;      // TODO_DW: Texture array
-    vkBarrier.subresourceRange.layerCount = 1;
+        VkImageMemoryBarrier vkBarrier = {};
+        vkBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        vkBarrier.oldLayout = (VkImageLayout)pBarriers[i].mOldLayout;
+        vkBarrier.newLayout = (VkImageLayout)pBarriers[i].mNewLayout;
+        vkBarrier.srcAccessMask = (VkAccessFlags)pBarriers[i].mSrcAccess;
+        vkBarrier.dstAccessMask = (VkAccessFlags)pBarriers[i].mDstAccess;
+        vkBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        vkBarrier.image = pBarriers[i].pTexture->mVkImage;
+        vkBarrier.subresourceRange.aspectMask = 
+            pBarriers[i].pTexture->mDesc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
+            ? VK_IMAGE_ASPECT_DEPTH_BIT
+            : VK_IMAGE_ASPECT_COLOR_BIT;
+        // Transition all mips by default.
+        if(pBarriers[i].mMipCount == 0)
+        {
+            vkBarrier.subresourceRange.baseMipLevel = 0;
+            vkBarrier.subresourceRange.levelCount = pBarriers[i].pTexture->mDesc.mMipCount;
+        }
+        else
+        {
+            vkBarrier.subresourceRange.baseMipLevel = pBarriers[i].mStartMip;
+            vkBarrier.subresourceRange.levelCount = pBarriers[i].mMipCount;
+        }
+        vkBarrier.subresourceRange.baseArrayLayer = 0;      // TODO_DW: Texture array
+        vkBarrier.subresourceRange.layerCount = 1;
 
-    vkCmdPipelineBarrier(pCmd->mVkCmd, 
-            (VkPipelineStageFlags)barrier.mSrcStage, 
-            (VkPipelineStageFlags)barrier.mDstStage, 
-            0, 
-            0, NULL, 
-            0, NULL, 
-            1, &vkBarrier);
+        vkCmdPipelineBarrier(pCmd->mVkCmd, 
+                (VkPipelineStageFlags)pBarriers[i].mSrcStage, 
+                (VkPipelineStageFlags)pBarriers[i].mDstStage, 
+                0, 
+                0, NULL, 
+                0, NULL, 
+                1, &vkBarrier);
 
-    if(barrier.mStartMip == 0)
-    {
-        barrier.pTexture->mDesc.mBaseLayout = barrier.mNewLayout;
+        if(pBarriers[i].mStartMip == 0)
+        {
+            pBarriers[i].pTexture->mDesc.mBaseLayout = pBarriers[i].mNewLayout;
+        }
     }
+    
+}
+
+void cmdRenderTargetBarrier(CommandBuffer* pCmd, uint32 barrierCount, RenderTargetBarrier* pBarriers)
+{
+    ASSERT(pCmd && barrierCount && pBarriers);
+
+    TextureBarrier textureBarriers[barrierCount];
+    for(uint32 i = 0; i < barrierCount; i++)
+    {
+        RenderTarget* pTarget = pBarriers[i].pTarget;
+        TextureBarrier barrier = {
+            pBarriers[i].pTarget->pTexture,
+            pBarriers[i].mOldLayout,
+            pBarriers[i].mNewLayout, 
+            0, 1,
+            pBarriers[i].mSrcStage,
+            pBarriers[i].mDstStage,
+            pBarriers[i].mSrcAccess,
+            pBarriers[i].mDstAccess,
+        };
+        textureBarriers[i] = barrier;
+    }
+    cmdTextureBarrier(pCmd, barrierCount, textureBarriers);
 }
 
 void cmdSwapChainBarrier(CommandBuffer* pCmd, SwapChain* pSwapChain, ImageLayout newLayout)
@@ -1036,7 +1143,7 @@ void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
 
     vkCmdClearColorImage(pCmd->mVkCmd, 
             pTarget->pTexture->mVkImage, 
-            (VkImageLayout)pTarget->pTexture->mDesc.mBaseLayout, 
+            (VkImageLayout)getImageLayout(pTarget), 
             &clear, 
             1, &range);
 }
@@ -1059,7 +1166,7 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
 
     vkCmdClearDepthStencilImage(pCmd->mVkCmd, 
             pTarget->pTexture->mVkImage, 
-            (VkImageLayout)pTarget->pTexture->mDesc.mBaseLayout, 
+            (VkImageLayout)getImageLayout(pTarget), 
             &clear, 
             1, &range);
 }

@@ -1,45 +1,142 @@
 #include "../generated/build_includes.hpp"
 #include "src/asset/asset.hpp"
+#include "src/render/command_buffer.hpp"
+#include "src/render/render.hpp"
+#include "src/render/shader.hpp"
 
 App gApp;
 AssetManager gAssetManager;
-Shader* pShader = NULL;
-Texture* pTexture = NULL;
 Renderer gRenderer;
 
-DW_MAIN()
-{
-    BEGIN_MAIN;
+RenderTarget*       pFullscreenRT = NULL;
+Shader*             pFullscreenVert = NULL;
+Shader*             pFullscreenFrag = NULL;
+GraphicsPipeline*   pFullscreenPipeline = NULL;
 
-    initApp(800, 600, "DW App", &gApp);
+uint32 gFrame = 0;
+
+#define APP_WIDTH 800
+#define APP_HEIGHT 600
+
+void init()
+{
+    initApp(APP_WIDTH, APP_HEIGHT, "DW App", &gApp);
     AssetManagerDesc assetManagerDesc;
     assetManagerDesc.mPermanentArenaSize = GB(1);
     assetManagerDesc.mTempArenaSize = MB(128);
     initAssetManager(assetManagerDesc, &gAssetManager);
 
-    testCore(&gApp);
-    testMath();
+    RendererDesc rendererDesc = {};
+    rendererDesc.pApp = &gApp;
+    initRenderer(rendererDesc, &gRenderer);
 
-    // Testing shader compilation
-    //loadShader(&gAssetManager, &gRenderer, 
-    //        str("../../res/shaders/test.vert"),
-    //        &pShader);
+    loadShader(&gAssetManager, &gRenderer, 
+            str("../../res/shaders/test.vert"), 
+            &pFullscreenVert);
+    loadShader(&gAssetManager, &gRenderer, 
+            str("../../res/shaders/test.frag"), 
+            &pFullscreenFrag);
 
-    // Testing image loading
-    //loadTexture(&gAssetManager, &gRenderer,
-    //        str("../../res/textures/white.png"),
-    //        false,
-    //        &pTexture);
-
-    while(gApp.mRunning)
+    // Fullscreen RT
     {
-        poll(&gApp);
-        // process load requests
-        // update and render
+        RenderTargetDesc desc = {};
+        desc.mFormat = FORMAT_RGBA8_UNORM;
+        desc.mClear = {{0,0,0,0}};
+        desc.mWidth = APP_WIDTH;
+        desc.mHeight = APP_HEIGHT;
+        addRenderTarget(&gRenderer, desc, &pFullscreenRT);
     }
 
+    // Fullscreen pipeline
+    {
+        GraphicsPipelineDesc desc = {};
+        desc.mRenderTargetCount = 1;
+        desc.mRenderTargetFormats[0] = pFullscreenRT->mDesc.mFormat;
+
+        desc.pVS = pFullscreenVert;
+        desc.pFS = pFullscreenFrag;
+
+        desc.mCullMode = CULL_MODE_NONE;
+        desc.mFrontFace = FRONT_FACE_CW;
+        addPipeline(&gRenderer, desc, &pFullscreenPipeline);
+    }
+
+}
+
+void shutdown()
+{
+    waitForCommands(&gRenderer);
+
+    removePipeline(&gRenderer, &pFullscreenPipeline);
+    removeRenderTarget(&gRenderer, &pFullscreenRT);
+    removeShader(&gRenderer, &pFullscreenFrag);
+    removeShader(&gRenderer, &pFullscreenVert);
+
+    destroyRenderer(&gRenderer);
     destroyAssetManager(&gAssetManager);
     destroyApp(&gApp);
+}
+
+void render()
+{
+    acquireNextImage(&gRenderer, gFrame);
+
+    CommandBuffer* pCmd = getCmd(&gRenderer);
+    beginCmd(pCmd);
+
+    // Fulscreen pass
+    {
+        RenderTargetBarrier barrier = {pFullscreenRT, getImageLayout(pFullscreenRT), IMAGE_LAYOUT_COLOR_OUTPUT };
+        cmdRenderTargetBarrier(pCmd, 1, &barrier);
+
+        RenderTargetBindDesc bindDesc = {};
+        bindDesc.mColorCount = 1;
+        bindDesc.mColorBindings[0] = { pFullscreenRT, LOAD_OP_LOAD, STORE_OP_STORE };
+        cmdBindRenderTargets(pCmd, bindDesc);
+
+        cmdBindGraphicsPipeline(pCmd, pFullscreenPipeline);
+
+        cmdSetViewport(pCmd, pFullscreenRT);
+        cmdSetScissor(pCmd, pFullscreenRT);
+
+        cmdDraw(pCmd, 3, 1);
+
+        cmdUnbindRenderTargets(pCmd);
+    }
+
+    // Copy output to swap chain
+    {
+        RenderTargetBarrier barrier = {pFullscreenRT, IMAGE_LAYOUT_COLOR_OUTPUT, IMAGE_LAYOUT_TRANSFER_SRC };
+        cmdRenderTargetBarrier(pCmd, 1, &barrier);
+        cmdCopyToSwapChain(pCmd, &gRenderer.mSwapChain, pFullscreenRT->pTexture);
+    }
+
+    endCmd(pCmd);
+    submitFrameCmd(&gRenderer, pCmd);
+    present(&gRenderer);
+    gFrame++;
+}
+
+DW_MAIN()
+{
+    BEGIN_MAIN;
+
+    init();
+
+    while(true)
+    {
+        poll(&gApp);
+        if(!gApp.mRunning)
+        {
+            break;
+        }
+
+        // process load requests
+        
+        render();
+    }
+
+    shutdown();
 
     END_MAIN;
 }
