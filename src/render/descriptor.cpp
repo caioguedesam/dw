@@ -1,4 +1,4 @@
-#include "resource.hpp"
+#include "descriptor.hpp"
 #include "render.hpp"
 #include "buffer.hpp"
 #include "texture.hpp"
@@ -6,13 +6,13 @@
 #include "src/core/memory.hpp"
 #include "vulkan/vulkan_core.h"
 
-void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResourceSet** ppSet)
+void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet** ppSet)
 {
     ASSERT(pRenderer && ppSet);
     ASSERT(*ppSet == NULL);
     ASSERT(desc.mCount);
 
-    *ppSet = (ShaderResourceSet*)poolAlloc(&pRenderer->poolResourceSets);
+    *ppSet = (DescriptorSet*)poolAlloc(&pRenderer->poolDescriptorSets);
 
     **ppSet = {};
 
@@ -81,7 +81,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
     uint32 cursor = 0;
     for(uint32 i = 0; i < count; i++)
     {
-        ShaderResource res = desc.mResources[i];
+        Descriptor res = desc.mResources[i];
         vkWrites[i] = {};
         vkWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         vkWrites[i].dstSet = vkSet;
@@ -91,10 +91,10 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
 
         switch(res.mType)
         {
-            case RESOURCE_UNIFORM_BUFFER:
-            case RESOURCE_DYNAMIC_UNIFORM_BUFFER:
-            case RESOURCE_STORAGE_BUFFER:
-            case RESOURCE_DYNAMIC_STORAGE_BUFFER:
+            case DESCRIPTOR_UNIFORM_BUFFER:
+            case DESCRIPTOR_DYNAMIC_UNIFORM_BUFFER:
+            case DESCRIPTOR_STORAGE_BUFFER:
+            case DESCRIPTOR_DYNAMIC_STORAGE_BUFFER:
             {
                 Buffer* pBuffer = (Buffer*)res.pData;
                 vkBufferInfos[cursor] = {};
@@ -104,7 +104,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
                 vkWrites[i].pBufferInfo = &vkBufferInfos[cursor];
                 cursor++;
             } break;
-            case RESOURCE_TEXTURE:
+            case DESCRIPTOR_TEXTURE:
             {
                 Texture* pStart = (Texture*)res.pData;
                 uint32 textureWriteStart = cursor;
@@ -119,7 +119,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
                 }
                 vkWrites[i].pImageInfo = &vkImageInfos[textureWriteStart];
             } break;
-            case RESOURCE_SAMPLER:
+            case DESCRIPTOR_SAMPLER:
             {
                 Sampler* pSampler = (Sampler*)res.pData;
                 vkImageInfos[cursor] = {};
@@ -140,7 +140,7 @@ void addResourceSet(Renderer* pRenderer, ShaderResourceSetDesc desc, ShaderResou
             0, NULL);
 }
 
-void removeResourceSet(Renderer* pRenderer, ShaderResourceSet** ppSet)
+void removeDescriptorSet(Renderer* pRenderer, DescriptorSet** ppSet)
 {
     ASSERT(pRenderer && ppSet);
     ASSERT(*ppSet);
@@ -155,6 +155,6 @@ void removeResourceSet(Renderer* pRenderer, ShaderResourceSet** ppSet)
     // TODO_DW: Descriptor sets are freed with the pool. I might need to
     // free and recreate the descriptor pool on shader reload.
 
-    poolFree(&pRenderer->poolResourceSets, *ppSet);
+    poolFree(&pRenderer->poolDescriptorSets, *ppSet);
     *ppSet = NULL;
 }

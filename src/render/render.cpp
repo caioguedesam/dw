@@ -1,11 +1,11 @@
 #include "render.hpp"
 #include "../core/debug.hpp"
-#include "src/core/memory.hpp"
-#include "src/render/buffer.hpp"
-#include "src/render/texture.hpp"
-#include "src/render/shader.hpp"
-#include "src/render/resource.hpp"
-#include "src/render/command_buffer.hpp"
+#include "../core/memory.hpp"
+#include "buffer.hpp"
+#include "texture.hpp"
+#include "shader.hpp"
+#include "descriptor.hpp"
+#include "command_buffer.hpp"
 #include "vulkan/vulkan_core.h"
 #include "vulkan/vulkan_win32.h"
 
@@ -398,8 +398,8 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
             &vkLayout);
 
     // Pipeline
-    VkPipelineRenderingCreateInfoKHR renderInfo = {};
-    renderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    VkPipelineRenderingCreateInfo renderInfo = {};
+    renderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     renderInfo.colorAttachmentCount = desc.mRenderTargetCount;
     renderInfo.pColorAttachmentFormats = (VkFormat*)(&desc.mRenderTargetFormats);
     renderInfo.depthAttachmentFormat = (VkFormat)desc.mDepthTargetFormat;
@@ -524,7 +524,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     initPool(sizeof(Texture), desc.mMaxTextures, &pRenderer->poolTextures);
     initPool(sizeof(Sampler), desc.mMaxSamplers, &pRenderer->poolSamplers);
     initPool(sizeof(Shader), desc.mMaxShaders, &pRenderer->poolShaders);
-    initPool(sizeof(ShaderResourceSet), desc.mMaxResourceSets, &pRenderer->poolResourceSets);
+    initPool(sizeof(DescriptorSet), desc.mMaxDescriptorSets, &pRenderer->poolDescriptorSets);
     initPool(sizeof(RenderTarget), desc.mMaxRenderTargets, &pRenderer->poolRenderTargets);
     initPool(sizeof(GraphicsPipeline), desc.mMaxGraphicsPipelines, &pRenderer->poolGraphicsPipelines);
     initPool(sizeof(ComputePipeline), desc.mMaxComputePipelines, &pRenderer->poolComputePipelines);
@@ -879,7 +879,7 @@ void destroyRenderer(Renderer* pRenderer)
     destroyPool(&pRenderer->poolTextures);
     destroyPool(&pRenderer->poolSamplers);
     destroyPool(&pRenderer->poolShaders);
-    destroyPool(&pRenderer->poolResourceSets);
+    destroyPool(&pRenderer->poolDescriptorSets);
     destroyPool(&pRenderer->poolRenderTargets);
     destroyPool(&pRenderer->poolGraphicsPipelines);
     destroyPool(&pRenderer->poolComputePipelines);
@@ -1062,4 +1062,99 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
             (VkImageLayout)pTarget->pTexture->mDesc.mBaseLayout, 
             &clear, 
             1, &range);
+}
+
+void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
+{
+    ASSERT(pCmd);
+
+    VkRenderingAttachmentInfo attachmentInfo[MAX_PIPELINE_RENDER_TARGETS];
+    VkRenderingAttachmentInfo depthAttachmentInfo = {};
+    for(uint32 i = 0; i < desc.mColorCount; i++)
+    {
+        RenderTargetBinding binding = desc.mColorBindings[i];
+        VkClearValue vkClear = {};
+        vkClear.color = 
+        { 
+            binding.pTarget->mDesc.mClear.mColor[0],
+            binding.pTarget->mDesc.mClear.mColor[1],
+            binding.pTarget->mDesc.mClear.mColor[2],
+            binding.pTarget->mDesc.mClear.mColor[3]
+        };
+
+        attachmentInfo[i] = {};
+        attachmentInfo[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        attachmentInfo[i].imageView = binding.pTarget->pTexture->mVkImageView;
+        attachmentInfo[i].imageLayout = (VkImageLayout)binding.pTarget->pTexture->mDesc.mBaseLayout;
+        attachmentInfo[i].loadOp = (VkAttachmentLoadOp)binding.mLoadOp;
+        attachmentInfo[i].storeOp = (VkAttachmentStoreOp)binding.mStoreOp;
+        attachmentInfo[i].clearValue = vkClear;
+    }
+
+    VkRect2D renderArea = {};
+    renderArea.offset = {0, 0};
+    renderArea.extent = {
+        desc.mColorBindings[0].pTarget->mDesc.mWidth,
+        desc.mColorBindings[0].pTarget->mDesc.mHeight
+    };
+
+    VkRenderingInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    info.renderArea = renderArea;
+    info.layerCount = 1;
+    info.colorAttachmentCount = desc.mColorCount;
+    info.pColorAttachments = attachmentInfo;
+    if(desc.mDepthBinding.pTarget)
+    {
+        VkClearValue vkClear = {};
+        vkClear.depthStencil.depth = desc.mDepthBinding.pTarget->mDesc.mClear.mDepth;
+        vkClear.depthStencil.stencil = 0;
+
+        depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+        depthAttachmentInfo.imageView = desc.mDepthBinding.pTarget->pTexture->mVkImageView;
+        depthAttachmentInfo.imageLayout = 
+            (VkImageLayout)desc.mDepthBinding.pTarget->pTexture->mDesc.mBaseLayout;
+        depthAttachmentInfo.loadOp = (VkAttachmentLoadOp)desc.mDepthBinding.mLoadOp;
+        depthAttachmentInfo.storeOp = (VkAttachmentStoreOp)desc.mDepthBinding.mStoreOp;
+        depthAttachmentInfo.clearValue = vkClear;
+
+        info.pDepthAttachment = &depthAttachmentInfo;
+    }
+    else
+    {
+        info.pDepthAttachment = NULL;
+    }
+    info.pStencilAttachment = NULL;     // TODO_DW: Stencil
+    
+    vkCmdBeginRendering(pCmd->mVkCmd, &info);
+}
+
+void cmdUnbindRenderTargets(CommandBuffer* pCmd)
+{
+    ASSERT(pCmd);
+    vkCmdEndRendering(pCmd->mVkCmd);
+}
+
+void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline)
+{
+    ASSERT(pCmd && pPipeline);
+    vkCmdBindPipeline(pCmd->mVkCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pPipeline->mVkPipeline);
+}
+
+void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline)
+{
+    ASSERT(pCmd && pPipeline);
+    vkCmdBindPipeline(pCmd->mVkCmd, VK_PIPELINE_BIND_POINT_COMPUTE, pPipeline->mVkPipeline);
+}
+
+void cmdBindResourceSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        DescriptorSet* pResourceSet, uint32 setBinding)
+{
+    ASSERT(pCmd && pPipeline && pResourceSet);
+}
+
+void cmdBindResourceSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        DescriptorSet* pResourceSet, uint32 setBinding)
+{
+    ASSERT(pCmd && pPipeline && pResourceSet);
 }

@@ -4,7 +4,6 @@
 #include "../third_party/stb_image.h"
 #include "../core/debug.hpp"
 #include "../render/texture.hpp"
-#include "../render/render.hpp"
 
 void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path, 
         bool flipVertical, Texture** ppOut)

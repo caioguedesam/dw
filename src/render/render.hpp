@@ -4,7 +4,7 @@
 #include "../core/memory.hpp"
 #include "texture.hpp"
 #include "shader.hpp"
-#include "resource.hpp"
+#include "descriptor.hpp"
 #include "command_buffer.hpp"
 #include "vulkan/vulkan_core.h"
 #include "vma/vk_mem_alloc.h"
@@ -248,7 +248,7 @@ struct GraphicsPipelineDesc
     ImageFormat mDepthTargetFormat = FORMAT_UNDEFINED;
 
     // Shader resources
-    ShaderResourceSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
+    DescriptorSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
     uint32 mResourceSetCount = 0;
 
     // Programmable stages
@@ -293,7 +293,7 @@ void removePipeline(Renderer* pRenderer, GraphicsPipeline** ppPipeline);
 struct ComputePipelineDesc
 {
     // Shader resources
-    ShaderResourceSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
+    DescriptorSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
     uint32 mResourceSetCount = 0;
 
     // Programmable stages
@@ -321,7 +321,7 @@ struct RendererDesc
     uint64 mMaxTextures             = 1024;
     uint64 mMaxSamplers             = 64;
     uint64 mMaxShaders              = 256;
-    uint64 mMaxResourceSets         = 64;
+    uint64 mMaxDescriptorSets       = 64;
     uint64 mMaxRenderTargets        = 64;
     uint64 mMaxGraphicsPipelines    = 64;
     uint64 mMaxComputePipelines     = 64;
@@ -335,7 +335,7 @@ struct Renderer
     Pool poolTextures           = {};    
     Pool poolSamplers           = {};
     Pool poolShaders            = {};
-    Pool poolResourceSets       = {};
+    Pool poolDescriptorSets     = {};
     Pool poolRenderTargets      = {};
     Pool poolGraphicsPipelines  = {};
     Pool poolComputePipelines   = {};
@@ -382,11 +382,11 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);
 void cmdUnbindRenderTargets(CommandBuffer* pCmd);
 void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
-void cmdBindComputePipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
+void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline);
 void cmdBindResourceSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        ShaderResourceSet* pResourceSet, uint32 setBinding);
+        DescriptorSet* pResourceSet, uint32 setBinding);
 void cmdBindResourceSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        ShaderResourceSet* pResourceSet, uint32 setBinding);
+        DescriptorSet* pResourceSet, uint32 setBinding);
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
 void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdSetScissor(CommandBuffer* pCmd, float x, float y, float w, float h);
