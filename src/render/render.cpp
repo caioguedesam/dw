@@ -379,15 +379,15 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     depthInfo.stencilTestEnable = VK_FALSE;     // TODO_DW: Stencil
 
     // Resource set layout
-    VkDescriptorSetLayout setLayouts[desc.mResourceSetCount];
-    for(uint32 i = 0; i < desc.mResourceSetCount; i++)
+    VkDescriptorSetLayout setLayouts[desc.mDescriptorSetCount];
+    for(uint32 i = 0; i < desc.mDescriptorSetCount; i++)
     {
-        setLayouts[i] = desc.pResourceSets[i]->mVkLayout;
+        setLayouts[i] = desc.pDescriptorSets[i]->mVkLayout;
     }
 
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = desc.mResourceSetCount;
+    layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
     layoutInfo.pSetLayouts = setLayouts;
     layoutInfo.pushConstantRangeCount = 0;      // TODO_DW: Push constants
     layoutInfo.pPushConstantRanges = NULL;
@@ -463,15 +463,15 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
     shaderInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 
     // Resource set layout
-    VkDescriptorSetLayout setLayouts[desc.mResourceSetCount];
-    for(uint32 i = 0; i < desc.mResourceSetCount; i++)
+    VkDescriptorSetLayout setLayouts[desc.mDescriptorSetCount];
+    for(uint32 i = 0; i < desc.mDescriptorSetCount; i++)
     {
-        setLayouts[i] = desc.pResourceSets[i]->mVkLayout;
+        setLayouts[i] = desc.pDescriptorSets[i]->mVkLayout;
     }
 
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = desc.mResourceSetCount;
+    layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
     layoutInfo.pSetLayouts = setLayouts;
     layoutInfo.pushConstantRangeCount = 0;      // TODO_DW: Push constants
     layoutInfo.pPushConstantRanges = NULL;
@@ -1147,14 +1147,145 @@ void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline)
     vkCmdBindPipeline(pCmd->mVkCmd, VK_PIPELINE_BIND_POINT_COMPUTE, pPipeline->mVkPipeline);
 }
 
-void cmdBindResourceSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        DescriptorSet* pResourceSet, uint32 setBinding)
+void cmdBindDescriptorSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        DescriptorSet* pDescriptorSet, uint32 setBinding)
 {
-    ASSERT(pCmd && pPipeline && pResourceSet);
+    ASSERT(pCmd && pPipeline && pDescriptorSet);
+    vkCmdBindDescriptorSets(pCmd->mVkCmd, 
+            VK_PIPELINE_BIND_POINT_GRAPHICS, 
+            pPipeline->mVkLayout, 
+            setBinding, 
+            1, &pDescriptorSet->mVkSet, 
+            0, NULL);
 }
 
-void cmdBindResourceSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        DescriptorSet* pResourceSet, uint32 setBinding)
+void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        DescriptorSet* pDescriptorSet, uint32 setBinding)
 {
-    ASSERT(pCmd && pPipeline && pResourceSet);
+    ASSERT(pCmd && pPipeline && pDescriptorSet);
+    vkCmdBindDescriptorSets(pCmd->mVkCmd, 
+            VK_PIPELINE_BIND_POINT_COMPUTE, 
+            pPipeline->mVkLayout, 
+            setBinding, 
+            1, &pDescriptorSet->mVkSet, 
+            0, NULL);
+}
+
+void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h)
+{
+    ASSERT(pCmd);
+    VkViewport vkViewport = {};
+    vkViewport.x = x;
+    vkViewport.y = y;
+    vkViewport.width = w;
+    vkViewport.height = h;
+    vkViewport.minDepth = 0; // Default is reverse depth, but this doesn't need to change.
+    vkViewport.maxDepth = 1; // Change is only in projection matrix.
+    vkCmdSetViewport(pCmd->mVkCmd, 0, 1, &vkViewport);
+}
+
+void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget)
+{
+    cmdSetViewport(pCmd, 0, 0, pTarget->mDesc.mWidth, pTarget->mDesc.mHeight);
+}
+
+void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h)
+{
+    ASSERT(pCmd);
+    VkRect2D rect = {};
+    rect.offset = {x, y};
+    rect.extent = {w, h};
+    vkCmdSetScissor(pCmd->mVkCmd, 0, 1, &rect);
+}
+
+void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget)
+{
+    cmdSetScissor(pCmd, 0, 0, pTarget->mDesc.mWidth, pTarget->mDesc.mHeight);
+}
+
+void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
+{
+    ASSERT(pCmd && pBuffer);
+    ASSERT(pBuffer->mDesc.mType == BUFFER_TYPE_VERTEX);
+
+    vkCmdBindVertexBuffers(pCmd->mVkCmd, 
+            0, 1, 
+            &pBuffer->mVkBuffer, 0);
+}
+
+void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
+{
+    ASSERT(pCmd && pBuffer);
+    ASSERT(pBuffer->mDesc.mType == BUFFER_TYPE_INDEX);
+
+    vkCmdBindIndexBuffer(pCmd->mVkCmd, 
+            pBuffer->mVkBuffer, 
+            0, 
+            pBuffer->mDesc.mStride == 2
+            ? VK_INDEX_TYPE_UINT16
+            : VK_INDEX_TYPE_UINT32);
+}
+
+void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount)
+{
+    ASSERT(pCmd);
+    vkCmdDraw(pCmd->mVkCmd, vertexCount, instanceCount, 0, 0);
+}
+
+void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount)
+{
+    ASSERT(pCmd);
+    vkCmdDrawIndexed(pCmd->mVkCmd, 
+            indexCount, instanceCount, 
+            0, 0, 0);
+}
+
+void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z)
+{
+    ASSERT(pCmd);
+    ASSERT(x && y && z);
+    vkCmdDispatch(pCmd->mVkCmd, x, y, z);
+}
+
+void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc)
+{
+    ASSERT(pCmd && pSwapChain && pSrc);
+    ASSERT(pSrc->mDesc.mType = TEXTURE_TYPE_2D);
+
+    cmdSwapChainBarrier(pCmd, pSwapChain, IMAGE_LAYOUT_TRANSFER_DST);
+
+    VkOffset3D blitSrcSize = {};
+    blitSrcSize.x = pSrc->mDesc.mWidth;
+    blitSrcSize.y = pSrc->mDesc.mHeight;
+    blitSrcSize.z = 1;
+
+    VkOffset3D blitDstSize = {};
+    blitDstSize.x = pSwapChain->mVkExtents.width;
+    blitDstSize.y = pSwapChain->mVkExtents.height;
+    blitDstSize.z = 1;
+
+    VkImageBlit blitRegion = {};
+    blitRegion.srcSubresource.aspectMask =
+        pSrc->mDesc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
+        ? VK_IMAGE_ASPECT_DEPTH_BIT
+        : VK_IMAGE_ASPECT_COLOR_BIT;
+    blitRegion.srcSubresource.mipLevel = 0;
+    blitRegion.srcSubresource.baseArrayLayer = 0;
+    blitRegion.srcSubresource.layerCount = 1;
+    blitRegion.srcOffsets[1] = blitSrcSize;
+    blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    blitRegion.dstSubresource.mipLevel = 0;
+    blitRegion.dstSubresource.baseArrayLayer = 0;
+    blitRegion.dstSubresource.layerCount = 1;
+    blitRegion.dstOffsets[1] = blitDstSize;
+
+    vkCmdBlitImage(pCmd->mVkCmd, 
+            pSrc->mVkImage, 
+            (VkImageLayout)pSrc->mDesc.mBaseLayout, 
+            pSwapChain->mVkImages[pSwapChain->mActiveImage], 
+            pSwapChain->mVkImageLayouts[pSwapChain->mActiveImage], 
+            1, &blitRegion, 
+            VK_FILTER_NEAREST);
+
+    cmdSwapChainBarrier(pCmd, pSwapChain, IMAGE_LAYOUT_PRESENT_SRC);
 }

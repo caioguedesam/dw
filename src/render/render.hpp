@@ -248,8 +248,8 @@ struct GraphicsPipelineDesc
     ImageFormat mDepthTargetFormat = FORMAT_UNDEFINED;
 
     // Shader resources
-    DescriptorSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
-    uint32 mResourceSetCount = 0;
+    DescriptorSet* pDescriptorSets[MAX_PIPELINE_RESOURCE_SETS];
+    uint32 mDescriptorSetCount = 0;
 
     // Programmable stages
     Shader* pVS = NULL;
@@ -293,8 +293,8 @@ void removePipeline(Renderer* pRenderer, GraphicsPipeline** ppPipeline);
 struct ComputePipelineDesc
 {
     // Shader resources
-    DescriptorSet* pResourceSets[MAX_PIPELINE_RESOURCE_SETS];
-    uint32 mResourceSetCount = 0;
+    DescriptorSet* pDescriptorSets[MAX_PIPELINE_RESOURCE_SETS];
+    uint32 mDescriptorSetCount = 0;
 
     // Programmable stages
     Shader* pCS = NULL;
@@ -383,13 +383,13 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);
 void cmdUnbindRenderTargets(CommandBuffer* pCmd);
 void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
 void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline);
-void cmdBindResourceSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        DescriptorSet* pResourceSet, uint32 setBinding);
-void cmdBindResourceSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        DescriptorSet* pResourceSet, uint32 setBinding);
+void cmdBindDescriptorSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        DescriptorSet* pDescriptorSet, uint32 setBinding);
+void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        DescriptorSet* pDescriptorSet, uint32 setBinding);
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
 void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
-void cmdSetScissor(CommandBuffer* pCmd, float x, float y, float w, float h);
+void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h);
 void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
