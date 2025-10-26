@@ -34,7 +34,7 @@ LRESULT CALLBACK Win32WndProc(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam
         {
             pApp->mWindow.mWidth    = LOWORD(lparam);
             pApp->mWindow.mHeight   = HIWORD(lparam);
-            addLoadRequest(pApp, LOAD_REQUEST_RESIZE | LOAD_REQUEST_RENDER_TARGET);
+            addLoadRequest(pApp, LOAD_REQUEST_RESIZE);
         } break;
         default: break;
     }

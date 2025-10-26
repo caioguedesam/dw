@@ -18,35 +18,42 @@ uint32 gFrame = 0;
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
 
-void init()
+void addRenderTargets()
 {
-    initApp(APP_WIDTH, APP_HEIGHT, "DW App", &gApp);
-    AssetManagerDesc assetManagerDesc;
-    assetManagerDesc.mPermanentArenaSize = GB(1);
-    assetManagerDesc.mTempArenaSize = MB(128);
-    initAssetManager(assetManagerDesc, &gAssetManager);
+    // Fullscreen RT
+    {
+        RenderTargetDesc desc = {};
+        desc.mFormat = FORMAT_RGBA8_UNORM;
+        desc.mClear = {{0,0,0,0}};
+        desc.mWidth = gApp.mWindow.mWidth;
+        desc.mHeight = gApp.mWindow.mHeight;
+        addRenderTarget(&gRenderer, desc, &pFullscreenRT);
+    }
+}
 
-    RendererDesc rendererDesc = {};
-    rendererDesc.pApp = &gApp;
-    initRenderer(rendererDesc, &gRenderer);
+void removeRenderTargets()
+{
+    removeRenderTarget(&gRenderer, &pFullscreenRT);
+}
 
+void addShaders()
+{
     loadShader(&gAssetManager, &gRenderer, 
             str("../../res/shaders/test.vert"), 
             &pFullscreenVert);
     loadShader(&gAssetManager, &gRenderer, 
             str("../../res/shaders/test.frag"), 
             &pFullscreenFrag);
+}
 
-    // Fullscreen RT
-    {
-        RenderTargetDesc desc = {};
-        desc.mFormat = FORMAT_RGBA8_UNORM;
-        desc.mClear = {{0,0,0,0}};
-        desc.mWidth = APP_WIDTH;
-        desc.mHeight = APP_HEIGHT;
-        addRenderTarget(&gRenderer, desc, &pFullscreenRT);
-    }
+void removeShaders()
+{
+    removeShader(&gRenderer, &pFullscreenFrag);
+    removeShader(&gRenderer, &pFullscreenVert);
+}
 
+void addPipelines()
+{
     // Fullscreen pipeline
     {
         GraphicsPipelineDesc desc = {};
@@ -60,17 +67,37 @@ void init()
         desc.mFrontFace = FRONT_FACE_CW;
         addPipeline(&gRenderer, desc, &pFullscreenPipeline);
     }
+}
 
+void removePipelines()
+{
+    removePipeline(&gRenderer, &pFullscreenPipeline);
+}
+
+void init()
+{
+    initApp(APP_WIDTH, APP_HEIGHT, "DW App", &gApp);
+    AssetManagerDesc assetManagerDesc;
+    assetManagerDesc.mPermanentArenaSize = GB(1);
+    assetManagerDesc.mTempArenaSize = MB(128);
+    initAssetManager(assetManagerDesc, &gAssetManager);
+
+    RendererDesc rendererDesc = {};
+    rendererDesc.pApp = &gApp;
+    initRenderer(rendererDesc, &gRenderer);
+
+    addRenderTargets();
+    addShaders();
+    addPipelines();
 }
 
 void shutdown()
 {
     waitForCommands(&gRenderer);
 
-    removePipeline(&gRenderer, &pFullscreenPipeline);
-    removeRenderTarget(&gRenderer, &pFullscreenRT);
-    removeShader(&gRenderer, &pFullscreenFrag);
-    removeShader(&gRenderer, &pFullscreenVert);
+    removePipelines();
+    removeShaders();
+    removeRenderTargets();
 
     destroyRenderer(&gRenderer);
     destroyAssetManager(&gAssetManager);
@@ -117,6 +144,31 @@ void render()
     gFrame++;
 }
 
+void processLoadRequests(App* pApp)
+{
+    if(!pApp->mLoadRequests)
+    {
+        return;
+    }
+
+    waitForCommands(&gRenderer);
+    if(pApp->mLoadRequests & LOAD_REQUEST_RESIZE)
+    {
+        removePipelines();
+        removeRenderTargets();
+        destroySwapChain(&gRenderer, &gRenderer.mSwapChain);
+
+        initSwapChain(&gRenderer, &gRenderer.mSwapChain);
+        addRenderTargets();
+        addPipelines();
+    }
+    // TODO_DW: CONTINUE
+    // Render targets and pipelines need to be recreated on resize
+    // So RTs match app window (instead of being fixed size)
+
+    pApp->mLoadRequests = 0;
+}
+
 DW_MAIN()
 {
     BEGIN_MAIN;
@@ -130,6 +182,7 @@ DW_MAIN()
         {
             break;
         }
+        processLoadRequests(&gApp);
 
         // process load requests
         
