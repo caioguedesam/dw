@@ -1,5 +1,7 @@
 #include "../generated/build_includes.hpp"
 #include "src/asset/asset.hpp"
+#include "src/core/input.hpp"
+#include "src/core/app.hpp"
 #include "src/render/command_buffer.hpp"
 #include "src/render/render.hpp"
 #include "src/render/shader.hpp"
@@ -104,6 +106,14 @@ void shutdown()
     destroyApp(&gApp);
 }
 
+void update()
+{
+    if(isJustDown(&gApp.mKeys, KEY_R))
+    {
+        addLoadRequest(&gApp, LOAD_REQUEST_SHADER);
+    }
+}
+
 void render()
 {
     acquireNextImage(&gRenderer, gFrame);
@@ -161,12 +171,19 @@ void processLoadRequests(App* pApp)
         initSwapChain(&gRenderer, &gRenderer.mSwapChain);
         addRenderTargets();
         addPipelines();
-    }
-    // TODO_DW: CONTINUE
-    // Render targets and pipelines need to be recreated on resize
-    // So RTs match app window (instead of being fixed size)
 
-    pApp->mLoadRequests = 0;
+        removeLoadRequest(&gApp, LOAD_REQUEST_RESIZE);
+    }
+    if(pApp->mLoadRequests & LOAD_REQUEST_SHADER)
+    {
+        LOG("Reloading shaders...");
+        removePipelines();
+        removeShaders();
+
+        addShaders();
+        addPipelines();
+        removeLoadRequest(&gApp, LOAD_REQUEST_SHADER);
+    }
 }
 
 DW_MAIN()
@@ -184,8 +201,7 @@ DW_MAIN()
         }
         processLoadRequests(&gApp);
 
-        // process load requests
-        
+        update();        
         render();
     }
 

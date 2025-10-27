@@ -6,5 +6,5 @@ layout(location = 0) out vec4 poColor;
 
 void main()
 {
-    poColor = vec4(1.0, 0.0, 0.0, 1.0);
+    poColor = vec4(1.0, 0.0, 1.0, 1.0);
 }
