@@ -1315,9 +1315,10 @@ void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
     ASSERT(pCmd && pBuffer);
     ASSERT(pBuffer->mDesc.mType == BUFFER_TYPE_VERTEX);
 
+    VkDeviceSize vkOffset = 0;
     vkCmdBindVertexBuffers(pCmd->mVkCmd, 
             0, 1, 
-            &pBuffer->mVkBuffer, 0);
+            &pBuffer->mVkBuffer, &vkOffset);
 }
 
 void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)

@@ -664,8 +664,11 @@ m4f orthoRH(float l, float r, float t, float b, float n, float f)
 m4f perspectiveRH(float fovY, float aspect, float zNear, float zFar)
 {
     // https://www.vincentparizet.com/blog/posts/vulkan_perspective_matrix/
+
     // Perspective matrix for reverse depth, [0, 1] depth range
     // and Vulkan clip space (Y points down).
+    // Note: this also assumes view with camera facing -Z
+    // (right handed, +X right and +Y up).
 
     // TODO_DW: VULKAN
     m4f result = {};

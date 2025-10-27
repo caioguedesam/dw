@@ -145,8 +145,6 @@ void removeDescriptorSet(Renderer* pRenderer, DescriptorSet** ppSet)
     ASSERT(pRenderer && ppSet);
     ASSERT(*ppSet);
 
-    **ppSet = {};
-
     vkDestroyDescriptorSetLayout(
             pRenderer->mVkDevice,
             (*ppSet)->mVkLayout,
@@ -154,6 +152,7 @@ void removeDescriptorSet(Renderer* pRenderer, DescriptorSet** ppSet)
 
     // TODO_DW: Descriptor sets are freed with the pool. I might need to
     // free and recreate the descriptor pool on shader reload.
+    **ppSet = {};
 
     poolFree(&pRenderer->poolDescriptorSets, *ppSet);
     *ppSet = NULL;

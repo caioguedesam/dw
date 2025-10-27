@@ -77,6 +77,9 @@ void initApp(uint32 w, uint32 h, const char* title, App* pApp)
 
     // Initializing time
     initTime(pApp);
+    pApp->mTimer = createTimer(pApp);
+    startTimer(&pApp->mTimer);
+    endTimer(&pApp->mTimer);
 
     // Initializing input
     initInput(pApp);
@@ -88,6 +91,7 @@ void initApp(uint32 w, uint32 h, const char* title, App* pApp)
 
 void destroyApp(App* pApp)
 {
+    ASSERT(pApp);
     // Destroying window
     {
         DestroyWindow(pApp->mWindow.mWinHandle);
@@ -99,6 +103,12 @@ void destroyApp(App* pApp)
 void poll(App* pApp)
 {
     ASSERT(pApp);
+
+    // Poll time
+    float lastTime = getS(&pApp->mTimer);
+    endTimer(&pApp->mTimer);
+    pApp->mTime = getS(&pApp->mTimer);
+    pApp->mDt = pApp->mTime - lastTime;
 
     // Poll input
     pollCursor(&pApp->mCursor);
@@ -117,10 +127,18 @@ void poll(App* pApp)
 
 void addLoadRequest(App* pApp, uint32 loadRequest)
 {
+    ASSERT(pApp);
     pApp->mLoadRequests |= loadRequest;
 }
 
 void removeLoadRequest(App* pApp, uint32 loadRequest)
 {
+    ASSERT(pApp);
     pApp->mLoadRequests &= ~loadRequest;
+}
+
+float getAspectRatio(App* pApp)
+{
+    ASSERT(pApp);
+    return (float)pApp->mWindow.mWidth / (float)pApp->mWindow.mHeight;
 }

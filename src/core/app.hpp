@@ -2,6 +2,7 @@
 
 #include "base.hpp"
 #include "input.hpp"
+#include "time.hpp"
 
 enum AppLoadRequest : uint32
 {
@@ -29,6 +30,9 @@ struct App
 
     // Time
     uint64 mTicksPerSecond = 0;
+    Timer mTimer = {};
+    float mTime = 0;
+    float mDt = 0;
 
     // Input
     CursorState mCursor = {};
@@ -42,6 +46,7 @@ void    destroyApp(App* pApp);
 void    poll(App* pApp);
 void    addLoadRequest(App* pApp, uint32 loadRequest);
 void    removeLoadRequest(App* pApp, uint32 loadRequest);
+float   getAspectRatio(App* pApp);
 
 // TODO_DW: MULTIPLATFORM
 #define BEGIN_MAIN
