@@ -8,11 +8,11 @@
 #define STATIC_ASSERT(EXPR)
 #else
 
-void assert(uint64 expr, const char* msg);
-void assertf(uint64 expr, const char* fmt, ...);
+void dwassert(uint64 expr, const char* msg);
+void dwassertf(uint64 expr, const char* fmt, ...);
 
-#define ASSERT(EXPR) STMT(assert((uint64)(EXPR), STRINGIFY(EXPR)))
-#define ASSERTF(EXPR, FMT, ...) STMT(assertf((uint64)(EXPR), FMT, __VA_ARGS__))
+#define ASSERT(EXPR) STMT(dwassert((uint64)(EXPR), STRINGIFY(EXPR)))
+#define ASSERTF(EXPR, FMT, ...) STMT(dwassertf((uint64)(EXPR), FMT, __VA_ARGS__))
 #define STATIC_ASSERT(EXPR) static_assert((EXPR))
 
 #endif

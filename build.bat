@@ -16,55 +16,56 @@ for /F "tokens=1-4 delims=:.," %%a in ("%time%") do (
    set /A "start=(((%%a*60)+1%%b %% 100)*60+1%%c %% 100)*100+1%%d %% 100"
 )
 
-REM Output file
-set INCLUDES_OUTFILE=./generated/build_includes.hpp
-echo Generating %INCLUDES_OUTFILE%...
-
-if not exist "./generated" (
-    mkdir "./generated"
-)
-
-REM Write header
-echo #pragma once > "%INCLUDES_OUTFILE%"
-
-set "IGNORED_FILES=src/main.cpp src/dependencies.cpp"
-
-REM Loop recursively through .hpp and .cpp files
-for /r src %%f in (*.hpp *.cpp) do (
-    REM Get relative path from current directory
-    set "REL=%%f"
-    set "REL=!REL:%CD%\=!"
-    REM Replace backslashes with forward slashes
-    set "REL=!REL:\=/!"
-
-    set "IGNORE_FILE=0"
-    for %%I in (!IGNORED_FILES!) do (
-        if /I "!REL!"=="%%I" set "IGNORE_FILE=1"
-    )
-
-    if !IGNORE_FILE!==0 (
-        echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
-    )
-
-    rem if /i not "!REL!"=="src/main.cpp" (
-    rem     echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
-    rem )
-)
-
-echo %GREEN%Generated %INCLUDES_OUTFILE%%RESET%.
-
-REM ---------------------------------------------
-REM Building app
-
 set BUILD=debug
 set GENERATE_JSON=0
 set BUILD_DEPENDENCIES=0
+set GENERATE_INCLUDES=0
+set INCLUDES_OUTFILE=./generated/build_includes.hpp
 for %%A in (%*) do (
     if "%%~A"=="-r" set BUILD=release
     if "%%~A"=="-d" set BUILD=debug
     if "%%~A"=="--json" set GENERATE_JSON=1
     if "%%~A"=="--dependencies" set BUILD_DEPENDENCIES=1
+    if "%%~A"=="--includes" set GENERATE_INCLUDES=1
 )
+
+if %GENERATE_INCLUDES%==1 (
+    REM Output file
+    echo Generating %INCLUDES_OUTFILE%...
+    
+    if not exist "./generated" (
+        mkdir "./generated"
+    )
+    
+    REM Write header
+    echo #pragma once > "%INCLUDES_OUTFILE%"
+    
+    set "IGNORED_FILES=src/third_party/ src/main.cpp src/dependencies.cpp"
+    
+    REM Loop recursively through .hpp and .cpp files
+    for /r src %%f in (*.hpp *.cpp) do (
+        REM Get relative path from current directory
+        set "REL=%%f"
+        set "REL=!REL:%CD%\=!"
+        REM Replace backslashes with forward slashes
+        set "REL=!REL:\=/!"
+    
+        set "IGNORE_FILE=0"
+        for %%I in (!IGNORED_FILES!) do (
+            rem if /I "!REL!"=="%%I" set "IGNORE_FILE=1"
+            echo !REL! | findstr /I /C:"%%I" >nul && set "IGNORE_FILE=1"
+        )
+    
+        if !IGNORE_FILE!==0 (
+            echo #include "../!REL!" >> "%INCLUDES_OUTFILE%"
+        )
+    )
+    
+    echo %GREEN%Generated %INCLUDES_OUTFILE%%RESET%.
+)
+
+REM ---------------------------------------------
+REM Building app
 
 if "%~1"=="-r" set BUILD=release
 if "%~1"=="-d" set BUILD=debug

@@ -2,10 +2,15 @@
 #include "debug.hpp"
 #include "time.hpp"
 
+#include "../third_party/imgui/backends/imgui_impl_win32.h"
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
 // TODO_DW: MULTIPLATFORM
 
 LRESULT CALLBACK Win32WndProc(HWND hwnd, UINT umsg, WPARAM wparam, LPARAM lparam)
 {
+    if(ImGui_ImplWin32_WndProcHandler(hwnd, umsg, wparam, lparam)) return TRUE;
+
     if(umsg == WM_NCCREATE)
     {
         CREATESTRUCT* cs = (CREATESTRUCT*)lparam;

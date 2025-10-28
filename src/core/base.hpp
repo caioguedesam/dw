@@ -71,3 +71,5 @@ typedef unsigned char byte;
 #define PTR_DIFF(PA, PB) (uint64)((byte*)(PA) - (byte*)(PB))
 
 #define DEFAULT_ARRAY(ARR, SIZE) for(int32 _arr = 0; _arr < (SIZE); _arr++) { (ARR)[_arr] = {}; }
+
+#define UNUSED(V) (void)(V)

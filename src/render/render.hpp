@@ -378,6 +378,7 @@ struct Renderer
     VkPhysicalDeviceProperties mVkDeviceProperties = {};
     VkDevice mVkDevice = VK_NULL_HANDLE;
     VkQueue mVkQueue = VK_NULL_HANDLE;
+    uint32 mVkQueueFamily = 0;
     VmaAllocator mVkAllocator = VK_NULL_HANDLE;
     VkDescriptorPool mVkDescriptorPool = VK_NULL_HANDLE;
     VkCommandPool mVkCommandPool = VK_NULL_HANDLE;

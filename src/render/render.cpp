@@ -909,6 +909,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     pRenderer->mVkDeviceProperties = vkPhysicalDeviceProps;
     pRenderer->mVkDevice = vkDevice;
     pRenderer->mVkQueue = vkQueue;
+    pRenderer->mVkQueueFamily = vkQueueFamily;
     pRenderer->mVkAllocator = vkAllocator;
     pRenderer->mVkDescriptorPool = vkDescriptorPool;
     pRenderer->mVkCommandPool = vkCommandPool;

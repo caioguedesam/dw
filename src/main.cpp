@@ -11,6 +11,7 @@
 #include "src/render/shader.hpp"
 #include "src/render/camera.hpp"
 #include "src/render/texture.hpp"
+#include "src/render/ui.hpp"
 
 float cubeVertices[] = {
     // Front (+Z)
@@ -68,6 +69,7 @@ uint16 cubeIndices[] = {
 App gApp;
 AssetManager gAssetManager;
 Renderer gRenderer;
+UIState gUI;
 
 VertexLayout gCubeVertexLayout = {};
 Buffer* pVBCube = NULL;
@@ -75,6 +77,7 @@ Buffer* pIBCube = NULL;
 Texture* pTexCube = NULL;
 Sampler* pSamplerCube = NULL;
 
+// Unlit
 RenderTarget*       pTargetUnlit = NULL;
 RenderTarget*       pDepthUnlit = NULL;
 Shader*             pVSUnlit = NULL;
@@ -199,6 +202,12 @@ void init()
     rendererDesc.pApp = &gApp;
     initRenderer(rendererDesc, &gRenderer);
 
+    UIDesc uiDesc = {};
+    uiDesc.pApp = &gApp;
+    uiDesc.pRenderer = &gRenderer;
+    uiDesc.mTargetFormat = FORMAT_RGBA8_UNORM;
+    initUI(uiDesc, &gUI);
+
     // Cube vertex/index buffer
     {
         VertexLayoutDesc layoutDesc = {};
@@ -277,6 +286,7 @@ void shutdown()
     removeBuffer(&gRenderer, &pIBCube);
     removeBuffer(&gRenderer, &pVBCube);
 
+    destroyUI(&gUI);
     destroyRenderer(&gRenderer);
     destroyAssetManager(&gAssetManager);
     destroyApp(&gApp);
@@ -353,6 +363,20 @@ void render()
         cmdDrawIndexed(pCmd, ARR_LEN(cubeIndices), 1);
 
         cmdUnbindRenderTargets(pCmd);
+    }
+
+    // UI
+    {
+        RenderTargetBindDesc bindDesc = {};
+        bindDesc.mColorCount = 1;
+        bindDesc.mColorBindings[0] = { pTargetUnlit, LOAD_OP_LOAD, STORE_OP_STORE };
+
+        uiStartFrame();
+        uiDemo();
+        uiEndFrame(pCmd, bindDesc);
+        // TODO_DW: CONTINUE
+        // Need to have this working with dynamic rendering
+        // (vkCmdBeginRendering etc.)
     }
 
     // Copy output to swap chain

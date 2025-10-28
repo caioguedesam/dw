@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #ifndef _NOASSERT
-void assert(uint64 expr, const char* msg)
+void dwassert(uint64 expr, const char* msg)
 {
     if(expr)
     {
@@ -20,7 +20,7 @@ void assert(uint64 expr, const char* msg)
     ExitProcess(-1);
 }
 
-void assertf(uint64 expr, const char* fmt, ...)
+void dwassertf(uint64 expr, const char* fmt, ...)
 {
     if(expr)
     {
