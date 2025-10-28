@@ -82,7 +82,8 @@ struct Texture
     VmaAllocation   mVkAllocation   = VK_NULL_HANDLE;
 };
 
-void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
+void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture,
+        void* pSrc = NULL, uint64 srcSize = 0);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
 
 uint32 getMaxMipCount(uint32 w, uint32 h);

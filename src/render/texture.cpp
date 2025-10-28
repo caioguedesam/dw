@@ -38,7 +38,8 @@ VkImageViewType getVkImageViewType(TextureType type)
     }
 }
 
-void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
+void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture,
+        void* pSrc, uint64 srcSize)
 {
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture == NULL);
@@ -103,6 +104,10 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     (*ppTexture)->mVkImage = vkImage;
     (*ppTexture)->mVkImageView = vkImageView;
     (*ppTexture)->mVkAllocation = vkAlloc;
+
+    if(pSrc)
+    {
+    }
 
     // TODO_DW: Generate texture mipmap based on params
 }

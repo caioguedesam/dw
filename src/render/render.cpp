@@ -253,7 +253,7 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
 
     TextureDesc textureDesc = {};
     textureDesc.mFormat = desc.mFormat;
-    textureDesc.mBaseLayout = IMAGE_LAYOUT_DEPTH_STENCIL_OUTPUT;
+    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
     textureDesc.mType = TEXTURE_TYPE_2D;
     textureDesc.mUsage =
         TEXTURE_USAGE_DEPTH_TARGET |
@@ -261,6 +261,7 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
         TEXTURE_USAGE_TRANSFER_DST;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
+    textureDesc.mDepth = 1;
     textureDesc.mMipCount = 1;
     textureDesc.mSamples = desc.mSamples;
     Texture* pTexture = NULL;
@@ -391,9 +392,6 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
-        VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE,
-        VK_DYNAMIC_STATE_DEPTH_WRITE_ENABLE,
-        VK_DYNAMIC_STATE_DEPTH_COMPARE_OP,
     };
     VkPipelineDynamicStateCreateInfo dynInfo = {};
     dynInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -920,6 +918,17 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
 
     // Initializing command buffers
     initCommandBuffers(pRenderer);
+
+    // Initializing staging buffer for texture copies
+    {
+        uint64 stagingSize = MB(128);
+        BufferDesc stagingDesc = {};
+        stagingDesc.mType = BUFFER_TYPE_STAGING;
+        stagingDesc.mCount = 1;
+        stagingDesc.mSize = stagingSize;
+        stagingDesc.mStride = stagingSize;
+        addBuffer(pRenderer, stagingDesc, &pRenderer->pStagingBuffer);
+    }
 }
 
 void destroyRenderer(Renderer* pRenderer)
@@ -927,6 +936,8 @@ void destroyRenderer(Renderer* pRenderer)
     ASSERT(pRenderer);
 
     waitForCommands(pRenderer);
+
+    removeBuffer(pRenderer, &pRenderer->pStagingBuffer);
 
     destroySwapChain(pRenderer, &pRenderer->mSwapChain);
     

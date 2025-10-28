@@ -366,6 +366,8 @@ struct Renderer
     CommandBuffer mCommandBuffers[MAX_COMMAND_BUFFERS];
     uint32 mActiveFrame = 0;
 
+    Buffer* pStagingBuffer = NULL;
+
     // Vulkan
     VkInstance mVkInstance = VK_NULL_HANDLE;
 #if DW_DEBUG

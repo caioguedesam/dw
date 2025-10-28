@@ -10,43 +10,44 @@
 #include "src/render/render.hpp"
 #include "src/render/shader.hpp"
 #include "src/render/camera.hpp"
+#include "src/render/texture.hpp"
 
 float cubeVertices[] = {
     // Front (+Z)
-    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, // bottom-left
-     0.5f, -0.5f,  0.5f,  1.0f, 0.0f, // bottom-right
-     0.5f,  0.5f,  0.5f,  1.0f, 1.0f, // top-right
-    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f, // top-left
+    -0.5f, -0.5f,  0.5f,  0.0f, 1.0f, // bottom-left
+     0.5f, -0.5f,  0.5f,  1.0f, 1.0f, // bottom-right
+     0.5f,  0.5f,  0.5f,  1.0f, 0.0f, // top-right
+    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f, // top-left
 
     // Back (-Z)
-     0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f, -0.5f,  0.0f, 0.0f,
 
     // Left (-X)
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-    -0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-    -0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f, -0.5f,  0.5f,  1.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 0.0f,
 
     // Right (+X)
-     0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 0.0f,
+     0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
 
     // Top (+Y)
-    -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+    -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+     0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+     0.5f,  0.5f, -0.5f,  1.0f, 0.0f,
+    -0.5f,  0.5f, -0.5f,  0.0f, 0.0f,
 
     // Bottom (-Y)
-    -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, 1.0f
+    -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+     0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+     0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+    -0.5f, -0.5f,  0.5f,  0.0f, 0.0f
 };
 
 uint16 cubeIndices[] = {
@@ -71,8 +72,11 @@ Renderer gRenderer;
 VertexLayout gCubeVertexLayout = {};
 Buffer* pVBCube = NULL;
 Buffer* pIBCube = NULL;
+Texture* pTexCube = NULL;
+Sampler* pSamplerCube = NULL;
 
 RenderTarget*       pTargetUnlit = NULL;
+RenderTarget*       pDepthUnlit = NULL;
 Shader*             pVSUnlit = NULL;
 Shader*             pFSUnlit = NULL;
 GraphicsPipeline*   pPipelineUnlit = NULL;
@@ -104,11 +108,16 @@ void addRenderTargets()
         desc.mWidth = gApp.mWindow.mWidth;
         desc.mHeight = gApp.mWindow.mHeight;
         addRenderTarget(&gRenderer, desc, &pTargetUnlit);
+
+        desc.mFormat = FORMAT_D16_UNORM;
+        desc.mClear.mDepth = 0;
+        addDepthTarget(&gRenderer, desc, &pDepthUnlit);
     }
 }
 
 void removeRenderTargets()
 {
+    removeRenderTarget(&gRenderer, &pDepthUnlit);
     removeRenderTarget(&gRenderer, &pTargetUnlit);
 }
 
@@ -133,8 +142,10 @@ void addDescriptors()
     // Per frame
     {
         DescriptorSetDesc desc = {};
-        desc.mCount = 1;
+        desc.mCount = 3;
         desc.mResources[0] = { DESCRIPTOR_UNIFORM_BUFFER, pUBPerFrame, 1 };
+        desc.mResources[1] = { DESCRIPTOR_TEXTURE, pTexCube, 1 };
+        desc.mResources[2] = { DESCRIPTOR_SAMPLER, pSamplerCube, 1 };
         addDescriptorSet(&gRenderer, desc, &pDescriptorSetPerFrame);
     }
 }
@@ -151,6 +162,7 @@ void addPipelines()
         GraphicsPipelineDesc desc = {};
         desc.mRenderTargetCount = 1;
         desc.mRenderTargetFormats[0] = pTargetUnlit->mDesc.mFormat;
+        desc.mDepthTargetFormat = pDepthUnlit->mDesc.mFormat;
 
         desc.mVertexLayout = gCubeVertexLayout;
         desc.pVS = pVSUnlit;
@@ -158,6 +170,10 @@ void addPipelines()
 
         desc.mCullMode = CULL_MODE_NONE;
         desc.mFrontFace = FRONT_FACE_CW;
+
+        desc.mDepthTest = true;
+        desc.mDepthWrite = true;
+        desc.mDepthOp = COMPARE_GREATER;
 
         desc.mDescriptorSetCount = 1;
         desc.pDescriptorSets[0] = pDescriptorSetPerFrame;
@@ -206,6 +222,16 @@ void init()
         addBuffer(&gRenderer, ibDesc, &pIBCube, cubeIndices);
     }
 
+    // Cube texture
+    {
+        loadTexture(&gAssetManager, &gRenderer, 
+                str("../../res/textures/default_color.png"),
+                false, 
+                &pTexCube);
+        SamplerDesc desc = {};
+        addSampler(&gRenderer, desc, &pSamplerCube);
+    }
+
     // Per frame uniform buffer
     {
         BufferDesc desc = {};
@@ -245,6 +271,8 @@ void shutdown()
     removeShaders();
     removeRenderTargets();
 
+    removeSampler(&gRenderer, &pSamplerCube);
+    removeTexture(&gRenderer, &pTexCube);
     removeBuffer(&gRenderer, &pUBPerFrame);
     removeBuffer(&gRenderer, &pIBCube);
     removeBuffer(&gRenderer, &pVBCube);
@@ -301,12 +329,15 @@ void render()
 
     // Unlit pass
     {
-        RenderTargetBarrier barrier = {pTargetUnlit, getImageLayout(pTargetUnlit), IMAGE_LAYOUT_COLOR_OUTPUT };
-        cmdRenderTargetBarrier(pCmd, 1, &barrier);
+        RenderTargetBarrier barriers[2];
+        barriers[0] = {pTargetUnlit, getImageLayout(pTargetUnlit), IMAGE_LAYOUT_COLOR_OUTPUT };
+        barriers[1] = {pDepthUnlit, getImageLayout(pDepthUnlit), IMAGE_LAYOUT_DEPTH_STENCIL_OUTPUT };
+        cmdRenderTargetBarrier(pCmd, 2, barriers);
 
         RenderTargetBindDesc bindDesc = {};
         bindDesc.mColorCount = 1;
         bindDesc.mColorBindings[0] = { pTargetUnlit, LOAD_OP_CLEAR, STORE_OP_STORE };
+        bindDesc.mDepthBinding = { pDepthUnlit, LOAD_OP_CLEAR, STORE_OP_STORE };
         cmdBindRenderTargets(pCmd, bindDesc);
 
         cmdBindDescriptorSet(pCmd, pPipelineUnlit, pDescriptorSetPerFrame, 0);
