@@ -3,6 +3,7 @@
 #include "base.hpp"
 #include "input.hpp"
 #include "time.hpp"
+#include "memory.hpp"
 
 enum AppLoadRequest : uint32
 {
@@ -27,6 +28,8 @@ struct App
 
     Window  mWindow = {};
     uint32  mLoadRequests = LOAD_REQUEST_NONE;
+
+    Arena mAppArena = {};
 
     // Time
     uint64 mTicksPerSecond = 0;

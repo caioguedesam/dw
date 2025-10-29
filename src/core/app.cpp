@@ -1,5 +1,6 @@
 #include "app.hpp"
 #include "debug.hpp"
+#include "src/core/memory.hpp"
 #include "time.hpp"
 
 #include "../third_party/imgui/backends/imgui_impl_win32.h"
@@ -80,6 +81,9 @@ void initApp(uint32 w, uint32 h, const char* title, App* pApp)
         pApp->mWindow = window;
     }
 
+    // App arena
+    initArena(MB(64), &pApp->mAppArena);
+
     // Initializing time
     initTime(pApp);
     pApp->mTimer = createTimer(pApp);
@@ -101,6 +105,8 @@ void destroyApp(App* pApp)
     {
         DestroyWindow(pApp->mWindow.mWinHandle);
     }
+
+    destroyArena(&pApp->mAppArena);
 
     *pApp = {};
 }

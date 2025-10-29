@@ -75,7 +75,8 @@ VertexLayout gCubeVertexLayout = {};
 Buffer* pVBCube = NULL;
 Buffer* pIBCube = NULL;
 Texture* pTexCube = NULL;
-Sampler* pSamplerCube = NULL;
+
+Sampler* pSamplerPoint = NULL;
 
 // Unlit
 RenderTarget*       pTargetUnlit = NULL;
@@ -148,7 +149,7 @@ void addDescriptors()
         desc.mCount = 3;
         desc.mResources[0] = { DESCRIPTOR_UNIFORM_BUFFER, pUBPerFrame, 1 };
         desc.mResources[1] = { DESCRIPTOR_TEXTURE, pTexCube, 1 };
-        desc.mResources[2] = { DESCRIPTOR_SAMPLER, pSamplerCube, 1 };
+        desc.mResources[2] = { DESCRIPTOR_SAMPLER, pSamplerPoint, 1 };
         addDescriptorSet(&gRenderer, desc, &pDescriptorSetPerFrame);
     }
 }
@@ -238,7 +239,7 @@ void init()
                 false, 
                 &pTexCube);
         SamplerDesc desc = {};
-        addSampler(&gRenderer, desc, &pSamplerCube);
+        addSampler(&gRenderer, desc, &pSamplerPoint);
     }
 
     // Per frame uniform buffer
@@ -280,7 +281,7 @@ void shutdown()
     removeShaders();
     removeRenderTargets();
 
-    removeSampler(&gRenderer, &pSamplerCube);
+    removeSampler(&gRenderer, &pSamplerPoint);
     removeTexture(&gRenderer, &pTexCube);
     removeBuffer(&gRenderer, &pUBPerFrame);
     removeBuffer(&gRenderer, &pIBCube);
@@ -372,11 +373,11 @@ void render()
         bindDesc.mColorBindings[0] = { pTargetUnlit, LOAD_OP_LOAD, STORE_OP_STORE };
 
         uiStartFrame();
-        uiDemo();
+        //uiDemo();
+        uiStartWindow(str("UI Test"), -400, 0, 400, 0);
+        uiImage(&gUI, pTexCube, pSamplerPoint, 200, 200);
+        uiEndWindow();
         uiEndFrame(pCmd, bindDesc);
-        // TODO_DW: CONTINUE
-        // Need to have this working with dynamic rendering
-        // (vkCmdBeginRendering etc.)
     }
 
     // Copy output to swap chain

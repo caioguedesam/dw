@@ -77,6 +77,9 @@ void initUI(UIDesc desc, UIState* pUI)
     style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
     ImGui::StyleColorsClassic();
 
+    // Descriptor map (to associate Texture* with corresponding ImGui descriptor set)
+    pUI->mVkDescriptors = hashmap<Texture*, VkDescriptorSet>(&desc.pApp->mAppArena, 128);
+
     pUI->mDesc = desc;
     pUI->mVkDescriptorPool = vkDescriptorPool;
 }
@@ -108,7 +111,172 @@ void uiEndFrame(CommandBuffer* pCmd, RenderTargetBindDesc bindDesc)
     cmdUnbindRenderTargets(pCmd);
 }
 
+bool uiStartWindow(String windowTitle, float x, float y, float w, float h)
+{
+    ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+
+    if(x < 0) x = displaySize.x + x;
+    if(y < 0) y = displaySize.y + y;
+
+    if(w == 0) w = displaySize.x;
+    if(h == 0) h = displaySize.y;
+
+    ImGui::SetNextWindowPos(ImVec2(x, y));
+    ImGui::SetNextWindowSize(ImVec2(w, h));
+    return ImGui::Begin(cstr(windowTitle));
+}
+
+void uiEndWindow()
+{
+    ImGui::End();
+}
+
+bool uiStartTabBar(String tabBarTitle)
+{
+    return ImGui::BeginTabBar(cstr(tabBarTitle));
+}
+
+void uiEndTabBar()
+{
+    ImGui::EndTabBar();
+}
+
+bool uiStartTab(String tabTitle)
+{
+    return ImGui::BeginTabItem(cstr(tabTitle));
+}
+
+void uiEndTab()
+{
+    ImGui::EndTabItem();
+}
+
+bool uiIsHovered(bool delay)
+{
+    ImGuiHoveredFlags flags = delay
+        ? ImGuiHoveredFlags_DelayNormal
+        : ImGuiHoveredFlags_None;
+    return ImGui::IsItemHovered(flags);
+}
+
+void uiSeparator()
+{
+    ImGui::Separator();
+}
+
+void uiSeparator(String name)
+{
+    ImGui::SeparatorText(cstr(name));
+}
+
+void uiSameLine()
+{
+    ImGui::SameLine();
+}
+
+void uiText(String text)
+{
+    ImGui::Text("%s", cstr(text));
+}
+
+void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint32 h)
+{
+    ASSERT(pUI);
+    VkDescriptorSet vkDescriptorSet;
+    if(!pUI->mVkDescriptors.contains(pTexture))
+    {
+        // TODO_DW: This technically should be using a single hash
+        // for both textures and samplers.
+        vkDescriptorSet = ImGui_ImplVulkan_AddTexture(pSampler->vkSampler, 
+                pTexture->mVkImageView, 
+                (VkImageLayout)IMAGE_LAYOUT_SHADER_READ_ONLY);
+        pUI->mVkDescriptors.insert(pTexture, vkDescriptorSet);
+    }
+    else
+    {
+        vkDescriptorSet = pUI->mVkDescriptors[pTexture];
+    }
+    ImGui::Image((ImTextureID)vkDescriptorSet, ImVec2(w, h));
+}
+
+bool uiButton(String label, uint32 w, uint32 h)
+{
+    return ImGui::Button(cstr(label), ImVec2(w, h));
+}
+
+void uiCheckbox(String label, bool* pOut)
+{
+    ImGui::Checkbox(cstr(label), pOut);
+}
+
+void uiColor3f(String label, float* pOut)
+{
+    ImGui::ColorEdit3(cstr(label), pOut, ImGuiColorEditFlags_NoAlpha);
+}
+
+void uiColor4f(String label, float* pOut)
+{
+    ImGui::ColorEdit4(cstr(label), pOut);
+}
+
+void uiDragf(String label, float* pOut, float speed, float start, float end)
+{
+    ImGui::DragFloat(cstr(label), pOut, speed, start, end);
+}
+
+void uiDragi(String label, int32* pOut, float speed, int32 start, int32 end)
+{
+    ImGui::DragInt(cstr(label), pOut, speed, start, end);
+}
+
+void uiSliderf(String label, float* pOut, float start, float end, bool logarithmic)
+{
+    ImGuiSliderFlags flags = logarithmic
+        ? ImGuiSliderFlags_Logarithmic
+        : ImGuiSliderFlags_None;
+    ImGui::SliderFloat(cstr(label), pOut, start, end, "%.3f", flags);
+}
+
+void uiSlideri(String label, int32* pOut, int32 start, int32 end, bool logarithmic)
+{
+    ImGuiSliderFlags flags = logarithmic
+        ? ImGuiSliderFlags_Logarithmic
+        : ImGuiSliderFlags_None;
+    ImGui::SliderInt(cstr(label), pOut, start, end, "%.3f", flags);
+}
+
+void uiSlider2f(String label, float* pOut, float start, float end)
+{
+    ImGui::SliderFloat2(cstr(label), pOut, start, end);
+}
+
+void uiSlider3f(String label, float* pOut, float start, float end)
+{
+    ImGui::SliderFloat3(cstr(label), pOut, start, end);
+}
+
+void uiSliderAngle(String label, float* pOut)
+{
+    ImGui::SliderAngle(cstr(label), pOut);
+}
+
+void uiTooltip(String text)
+{
+    ImGui::SetTooltip("%s", cstr(text));
+}
+
+bool uiTreeNode(String name)
+{
+    return ImGui::TreeNode(cstr(name));
+}
+
+void uiTreePop()
+{
+    ImGui::TreePop();
+}
+
 void uiDemo()
 {
     ImGui::ShowDemoWindow();
 }
+
