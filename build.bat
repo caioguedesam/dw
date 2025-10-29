@@ -120,7 +120,7 @@ if %cc% lss 10 set cc=0%cc%
 echo %GREEN%Build finished in %mm%:%ss%:%cc%.%RESET% 
 
 rem Compile_commands.json generation (for clangd)
-set COMPILE_COMMAND=clang %CC_FLAGS% %DEFINES% -c ./src/main.cpp
+set COMPILE_COMMAND=clang %CC_FLAGS% %DEFINES% -DDW_DEBUG -c ./src/main.cpp
 set CURR_DIR=%~dp0
 set CURR_DIR=!CURR_DIR:\=/!
 set CURR_DIR=%CURR_DIR:~0,-1%

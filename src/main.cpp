@@ -12,6 +12,7 @@
 #include "src/render/camera.hpp"
 #include "src/render/texture.hpp"
 #include "src/render/ui.hpp"
+#include "src/render/timings.hpp"
 
 float cubeVertices[] = {
     // Front (+Z)
@@ -98,6 +99,7 @@ Buffer* pUBPerFrame = NULL;
 Camera gCamera = {};
 Timer gTimer = {};
 uint32 gFrame = 0;
+GpuTimer gGpuTimer = {};
 
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
@@ -270,6 +272,8 @@ void init()
             {0,0,0}, 
             camDesc, 
             &gCamera);
+
+    initGpuTimer(&gRenderer, &gGpuTimer);
 }
 
 void shutdown()
@@ -287,6 +291,7 @@ void shutdown()
     removeBuffer(&gRenderer, &pIBCube);
     removeBuffer(&gRenderer, &pVBCube);
 
+    destroyGpuTimer(&gGpuTimer);
     destroyUI(&gUI);
     destroyRenderer(&gRenderer);
     destroyAssetManager(&gAssetManager);
@@ -335,8 +340,17 @@ void render()
     CommandBuffer* pCmd = getCmd(&gRenderer);
     beginCmd(pCmd);
 
+    // Start GPU timings
+    GpuTimestampParams gpuTimerParams = {};
+    gpuTimerParams.pGpuTimer = &gGpuTimer;
+    gpuTimerParams.pCmd = pCmd;
+    gpuTimerParams.queryPool = gRenderer.mActiveFrame;
+    gpuTimerReadResults(&gpuTimerParams);
+    gpuTimerStart(&gpuTimerParams);
+
     // Upload per frame data
     copyToBuffer(&gRenderer, pUBPerFrame, 0, &perFrameUniforms, sizeof(PerFrameUniforms));
+    gpuTimestamp(str("Upload PerFrame"), &gpuTimerParams);
 
     // Unlit pass
     {
@@ -360,10 +374,13 @@ void render()
         cmdBindVertexBuffer(pCmd, pVBCube);
         cmdBindIndexBuffer(pCmd, pIBCube);
 
-        //cmdDraw(pCmd, 3, 1);
-        cmdDrawIndexed(pCmd, ARR_LEN(cubeIndices), 1);
+        for(uint32 i = 0; i < 10000; i++)
+        {
+            cmdDrawIndexed(pCmd, ARR_LEN(cubeIndices), 1);
+        }
 
         cmdUnbindRenderTargets(pCmd);
+        gpuTimestamp(str("Unlit Pass"), &gpuTimerParams);
     }
 
     // UI
@@ -373,11 +390,9 @@ void render()
         bindDesc.mColorBindings[0] = { pTargetUnlit, LOAD_OP_LOAD, STORE_OP_STORE };
 
         uiStartFrame();
-        //uiDemo();
-        uiStartWindow(str("UI Test"), -400, 0, 400, 0);
-        uiImage(&gUI, pTexCube, pSamplerPoint, 200, 200);
-        uiEndWindow();
+        uiGpuTimingsWindow(&gApp.mAppArena, &gGpuTimer, -400, 0, 400, 0);
         uiEndFrame(pCmd, bindDesc);
+        gpuTimestamp(str("UI pass"), &gpuTimerParams);
     }
 
     // Copy output to swap chain
@@ -385,6 +400,7 @@ void render()
         RenderTargetBarrier barrier = {pTargetUnlit, IMAGE_LAYOUT_COLOR_OUTPUT, IMAGE_LAYOUT_TRANSFER_SRC };
         cmdRenderTargetBarrier(pCmd, 1, &barrier);
         cmdCopyToSwapChain(pCmd, &gRenderer.mSwapChain, pTargetUnlit->pTexture);
+        gpuTimestamp(str("Swap Chain copy"), &gpuTimerParams);
     }
 
     endCmd(pCmd);
