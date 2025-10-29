@@ -5,6 +5,17 @@
 
 struct Renderer;
 
+// Each timestamp has a 120 frame history.
+#define GPU_TIMER_MAX_HISTORY 120
+struct GpuTimestamp
+{
+    double mHistory[GPU_TIMER_MAX_HISTORY]; // Last time diff for the ts in ms
+    uint32 mOffset = 0; // Next time diff will be pushed to this offset
+};
+
+void pushTimestamp(GpuTimestamp* pTimestamp, double value);
+double getLastTimestampMS(GpuTimestamp* pTimestamp);
+
 #define GPU_TIMER_MAX_TIMESTAMPS 50
 #define GPU_TIMER_MAX_POOLS 8
 struct GpuTimer
@@ -12,7 +23,7 @@ struct GpuTimer
     Renderer* pRenderer = NULL;
 
     String mTimestampNames[GPU_TIMER_MAX_TIMESTAMPS];
-    uint64 mTimestamps[GPU_TIMER_MAX_TIMESTAMPS];
+    GpuTimestamp mTimestamps[GPU_TIMER_MAX_TIMESTAMPS];
 
     VkQueryPool mVkQueryPools[GPU_TIMER_MAX_POOLS];
     uint32 mTimestampsPerQuery[GPU_TIMER_MAX_POOLS];

@@ -37,3 +37,4 @@ String substr(String s, uint64 start, uint64 len);
 
 String join(Arena* pArena, String s1, String s2);
 String strf(Arena* pArena, const char* fmt, ...);
+String strf(char* buf, const char* fmt, ...);

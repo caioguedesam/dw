@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/app.hpp"
 #include "../core/string.hpp"
+#include "../math/math.hpp"
 #include "../core/hash_map.hpp"
 #include "render.hpp"
 
@@ -44,6 +45,7 @@ void uiText(String text);
 void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint32 h);
 bool uiButton(String label, uint32 w = 0, uint32 h = 0);
 void uiCheckbox(String label, bool* pOut);
+void uiInputf(String label, float* pOut);
 void uiColor3f(String label, float* pOut);
 void uiColor4f(String label, float* pOut);
 void uiDragf(String label, float* pOut, float speed = 1.f, float start = 0, float end = 100);
@@ -57,3 +59,22 @@ void uiTooltip(String text);
 bool uiTreeNode(String name);
 void uiTreePop();
 void uiDemo();
+
+#define UI_MAX_LINES_PER_PLOT 8
+struct UILinePlotDesc
+{
+    v2f mSize       = {0, 0};   // -1 fills axis
+    v2f mMinLimit   = {0, 0};
+    v2f mMaxLimit   = {0, 0};
+    v4f mColor      = {0, 0, 0, -1};    // Default value for IMPLOT_AUTO_COL
+    bool mShaded    = false;
+
+    float* mDataX[UI_MAX_LINES_PER_PLOT];
+    float* mDataY[UI_MAX_LINES_PER_PLOT];
+    uint32 mLinePointCount = 0;
+    uint32 mLineCount = 0;
+
+    // TODO_DW: Label controls for axes
+};
+
+void uiLinePlot(String name, UILinePlotDesc desc);

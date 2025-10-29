@@ -221,3 +221,16 @@ String strf(Arena* pArena, const char* fmt, ...)
     va_end(args);
     return str(buf, len);
 }
+
+String strf(char* buf, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+
+    int64 len = vsnprintf(0, 0, fmt, args);
+    vsnprintf((char*)buf, len + 1, fmt, args);
+    buf[len] = 0;   // Null terminator for c-string compatibility
+
+    va_end(args);
+    return str((byte*)buf, len);
+}

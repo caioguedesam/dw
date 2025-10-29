@@ -6,10 +6,14 @@
 #include "ui.hpp"
 
 #ifndef DW_DEBUG
+void pushTimestamp(GpuTimestamp* pTimestamp, double value) {}
+double getLastTimestampMS(GpuTimestamp* pTimestamp) { return 0.0 }
+double getTimestampMS(GpuTimestamp* pTimestamp, uint32 index) { return 0.0 }
+
 void initGpuTimer(Renderer* pRenderer, GpuTimer* pGpuTimer) {}
 void destroyGpuTimer(GpuTimer* pGpuTimer) {}
 
-uint64 getTimestampCount(GpuTimestampParams* pParams) {}
+uint64 getTimestampCount(GpuTimestampParams* pParams) { return 0; }
 void setTimestampCount(GpuTimestampParams* pParams, uint64 count) {}
 
 void gpuTimerReadResults(GpuTimestampParams* pParams) {}
@@ -18,6 +22,21 @@ void gpuTimestamp(String name, GpuTimestampParams* pParams) {}
 
 void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h) {}
 #else
+
+void pushTimestamp(GpuTimestamp* pTimestamp, double value)
+{
+    ASSERT(pTimestamp);
+    pTimestamp->mHistory[pTimestamp->mOffset] = value;
+    pTimestamp->mOffset = (pTimestamp->mOffset + 1) % GPU_TIMER_MAX_HISTORY;
+}
+
+double getLastTimestampMS(GpuTimestamp* pTimestamp)
+{
+    ASSERT(pTimestamp);
+    uint32 offset = pTimestamp->mOffset;
+    if(offset == 0) offset = GPU_TIMER_MAX_HISTORY;
+    return pTimestamp->mHistory[offset - 1];
+}
 
 void initGpuTimer(Renderer* pRenderer, GpuTimer* pGpuTimer)
 {
@@ -41,7 +60,13 @@ void initGpuTimer(Renderer* pRenderer, GpuTimer* pGpuTimer)
     for(uint32 i = 0; i < GPU_TIMER_MAX_TIMESTAMPS; i++)
     {
         pGpuTimer->mTimestampNames[i] = {};
-        pGpuTimer->mTimestamps[i] = 0;
+        GpuTimestamp ts = {};
+        for(uint32 j = 0; j < GPU_TIMER_MAX_HISTORY; j++)
+        {
+            ts.mHistory[i] = 0.0;
+            ts.mOffset = 0;
+        }
+        pGpuTimer->mTimestamps[i] = ts;
     }
 
     pGpuTimer->pRenderer = pRenderer;
@@ -96,9 +121,15 @@ void gpuTimerReadResults(GpuTimestampParams* pParams)
     ASSERTVK(ret);
 
     // Write back results if available
-    for(uint32 i = 0; i < queryResultCount; i++)
+    for(uint32 i = 1; i < queryResultCount; i++)
     {
-        pParams->pGpuTimer->mTimestamps[i] = queryResults[i];
+        uint64 lastQueryResult = queryResults[i - 1];
+        uint64 queryResult = queryResults[i];
+        float period = pParams->pGpuTimer->pRenderer->mVkDeviceProperties.limits.timestampPeriod;
+        double ns = (queryResult - lastQueryResult) * period;
+        double ms = ns / 1e6;
+
+        pushTimestamp(&pParams->pGpuTimer->mTimestamps[i], ms);
     }
 }
 
@@ -137,6 +168,20 @@ void gpuTimestamp(String name, GpuTimestampParams* pParams)
     setTimestampCount(pParams, pParams->currentTimestamp);
 }
 
+void uiGpuTimingsGetPlotData(GpuTimestamp* pTimestamp, float* pX, float* pY, uint32 count)
+{
+    ASSERT(pTimestamp);
+    uint32 currentOffset = pTimestamp->mOffset;
+    if(currentOffset == 0) currentOffset = count;
+    for(int32 j = count - 1; j >= 0; j--)
+    {
+        pX[j] = (float)j;
+        pY[j] = (float)pTimestamp->mHistory[currentOffset - 1];
+        currentOffset--;
+        if(currentOffset == 0) currentOffset = count;
+    }
+}
+
 void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h)
 {
     ASSERT(pGpuTimer);
@@ -144,26 +189,61 @@ void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, floa
     ARENA_CHECKPOINT_SET(pScratchArena, gpuTimingsUI);
 
     uiStartWindow(str("GPU Timings"), x, y, w, h);
-    uint64 lastTimestamp = pGpuTimer->mTimestamps[0];
-    uint64 currentTimestamp = 0;
+    GpuTimestamp* pLastTimestamp = &pGpuTimer->mTimestamps[0];
+    GpuTimestamp* pCurrentTimestamp = NULL;
+
+    static bool detailed = false;
+    static float yMaxLimit = 100.f;
+    uiCheckbox(str("Detailed"), &detailed);
+    if(detailed)
+    {
+        uiDragf(str("Y Scale (MS)"), &yMaxLimit, 1.f, 20.f, 200.f);
+    }
+    uiSeparator();
+
     for(uint32 i = 1; i < GPU_TIMER_MAX_TIMESTAMPS; i++)
     {
-        currentTimestamp = pGpuTimer->mTimestamps[i];
-        if(currentTimestamp == 0)
+        pCurrentTimestamp = &pGpuTimer->mTimestamps[i];
+
+        double ms = getLastTimestampMS(pCurrentTimestamp);
+        if(ms == 0.0)
         {
             continue;
         }
 
-        float period = pGpuTimer->pRenderer->mVkDeviceProperties.limits.timestampPeriod;
-        double ns = (currentTimestamp - lastTimestamp) * period;
-        double ms = ns / 1e6;
-
+        // Timing data
+        String tsName = pGpuTimer->mTimestampNames[i];
         String text = strf(pScratchArena, "[%s]: %.3f ms",
-                cstr(pGpuTimer->mTimestampNames[i]),
+                cstr(tsName),
                 ms);
         uiText(text);
 
-        lastTimestamp = currentTimestamp;
+        // Detailed plot data (line plot with frame history, up to GPU_TIMER_MAX_HISTORY frames)
+        if(detailed)
+        {
+
+            float dataX[GPU_TIMER_MAX_HISTORY];
+            float dataY[GPU_TIMER_MAX_HISTORY];
+            uiGpuTimingsGetPlotData(pCurrentTimestamp, dataX, dataY, GPU_TIMER_MAX_HISTORY);
+
+            char label[256];
+            strf(label, "##Plot(%s)", cstr(tsName));
+
+            UILinePlotDesc desc = {};
+            desc.mShaded = true;
+            desc.mSize = {-1, 150};
+            desc.mMinLimit = {0, 0};
+            desc.mMaxLimit = {GPU_TIMER_MAX_HISTORY, yMaxLimit};
+            desc.mLinePointCount = GPU_TIMER_MAX_HISTORY;
+            desc.mLineCount = 1;
+            desc.mDataX[0] = dataX;
+            desc.mDataY[0] = dataY;
+
+            uiLinePlot(str(label), desc);
+        }
+
+        pLastTimestamp = pCurrentTimestamp;
+        uiSeparator();
     }
     uiEndWindow();
 

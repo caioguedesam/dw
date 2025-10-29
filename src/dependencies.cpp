@@ -10,3 +10,8 @@
 #include "third_party/imgui/imgui_demo.cpp"
 #include "third_party/imgui/backends/imgui_impl_win32.cpp"
 #include "third_party/imgui/backends/imgui_impl_vulkan.cpp"
+
+// ImPlot
+#include "third_party/implot/implot.cpp"
+#include "third_party/implot/implot_demo.cpp"
+#include "third_party/implot/implot_items.cpp"

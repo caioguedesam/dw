@@ -4,6 +4,7 @@
 #include "../third_party/imgui/imgui.h"
 #include "../third_party/imgui/backends/imgui_impl_vulkan.h"
 #include "../third_party/imgui/backends/imgui_impl_win32.h"
+#include "../third_party/implot/implot.h"
 #include "src/render/render.hpp"
 #include "vulkan/vulkan_core.h"
 
@@ -11,6 +12,7 @@ void initUI(UIDesc desc, UIState* pUI)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    ImPlot::CreateContext();
 
     // ImGui Win32
     ImGuiIO& io = ImGui::GetIO();
@@ -90,6 +92,7 @@ void destroyUI(UIState* pUI)
     waitForCommands(pUI->mDesc.pRenderer);
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
+    ImPlot::DestroyContext();
     ImGui::DestroyContext();
     vkDestroyDescriptorPool(pUI->mDesc.pRenderer->mVkDevice, pUI->mVkDescriptorPool, NULL);
 
@@ -209,6 +212,11 @@ void uiCheckbox(String label, bool* pOut)
     ImGui::Checkbox(cstr(label), pOut);
 }
 
+void uiInputf(String label, float* pOut)
+{
+    ImGui::InputFloat(cstr(label), pOut);
+}
+
 void uiColor3f(String label, float* pOut)
 {
     ImGui::ColorEdit3(cstr(label), pOut, ImGuiColorEditFlags_NoAlpha);
@@ -280,3 +288,35 @@ void uiDemo()
     ImGui::ShowDemoWindow();
 }
 
+void uiLinePlot(String name, UILinePlotDesc desc)
+{
+    if(ImPlot::BeginPlot(cstr(name), ImVec2(desc.mSize.x, desc.mSize.y)))
+    {
+        ImPlotAxisFlags axisFlags = ImPlotAxisFlags_NoTickLabels;
+        ImPlotLineFlags lineFlags = desc.mShaded
+            ? ImPlotLineFlags_Shaded
+            : ImPlotLineFlags_None;
+
+        ImPlot::SetupAxes(NULL, NULL, axisFlags, axisFlags);
+        ImPlot::SetupAxisLimits(ImAxis_X1, desc.mMinLimit.x, desc.mMaxLimit.x, ImGuiCond_Always);
+        ImPlot::SetupAxisLimits(ImAxis_Y1, desc.mMinLimit.y, desc.mMaxLimit.y, ImGuiCond_Always);
+        
+        ImVec4 color = ImVec4(desc.mColor.x, desc.mColor.y, desc.mColor.z, desc.mColor.w);
+        ImPlot::SetNextLineStyle(color, 0.5f);
+        ImPlot::SetNextFillStyle(color, 0.5f);
+
+        char lineLabel[256];
+        for(uint32 i = 0; i < desc.mLineCount; i++)
+        {
+            strf(lineLabel, "##%s__line(%d)", cstr(name), i);
+            ImPlot::PlotLine(lineLabel,
+                    &desc.mDataX[i][0],
+                    &desc.mDataY[i][0],
+                    desc.mLinePointCount,
+                    lineFlags,
+                    0, sizeof(float));
+        }
+
+        ImPlot::EndPlot();
+    }
+}
