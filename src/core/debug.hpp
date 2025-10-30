@@ -2,7 +2,7 @@
 #include "base.hpp"
 
 // Assert
-#if _NOASSERT
+#ifndef DW_DEBUG
 #define ASSERT(EXPR)
 #define ASSERTF(EXPR, ...)
 #define STATIC_ASSERT(EXPR)
@@ -18,7 +18,7 @@ void dwassertf(uint64 expr, const char* fmt, ...);
 #endif
 
 // Log
-#if _NOLOG
+#ifndef DW_DEBUG
 #define LOG(MSG)
 #define LOGL(LABEL, MSG)
 #define LOGF(FMT, ...)

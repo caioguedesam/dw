@@ -1,6 +1,7 @@
 #include "app.hpp"
 #include "debug.hpp"
-#include "src/core/memory.hpp"
+#include "memory.hpp"
+#include "profile.hpp"
 #include "time.hpp"
 
 #include "../third_party/imgui/backends/imgui_impl_win32.h"
@@ -113,6 +114,7 @@ void destroyApp(App* pApp)
 
 void poll(App* pApp)
 {
+    PROFILE_SCOPE;
     ASSERT(pApp);
 
     // Poll time

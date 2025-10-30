@@ -3,6 +3,7 @@
 #include "src/core/base.hpp"
 #include "src/core/input.hpp"
 #include "src/core/app.hpp"
+#include "src/core/profile.hpp"
 #include "src/math/math.hpp"
 #include "src/render/buffer.hpp"
 #include "src/render/command_buffer.hpp"
@@ -307,6 +308,8 @@ void updatePerFrameUniforms()
 
 void update()
 {
+    PROFILE_SCOPE;
+    LOG("Update");
     if(isJustDown(&gApp.mKeys, KEY_R))
     {
         addLoadRequest(&gApp, LOAD_REQUEST_SHADER);
@@ -335,6 +338,7 @@ void update()
 
 void render()
 {
+    PROFILE_SCOPE;
     acquireNextImage(&gRenderer, gFrame);
 
     CommandBuffer* pCmd = getCmd(&gRenderer);
@@ -455,6 +459,7 @@ DW_MAIN()
 
     while(true)
     {
+        PROFILE_SCOPE_NAME("Main Loop");
         poll(&gApp);
         if(!gApp.mRunning)
         {

@@ -24,6 +24,7 @@ set INCLUDES_OUTFILE=./generated/build_includes.hpp
 for %%A in (%*) do (
     if "%%~A"=="-r" set BUILD=release
     if "%%~A"=="-d" set BUILD=debug
+    if "%%~A"=="-p" set BUILD=profile
     if "%%~A"=="--json" set GENERATE_JSON=1
     if "%%~A"=="--dependencies" set BUILD_DEPENDENCIES=1
     if "%%~A"=="--includes" set GENERATE_INCLUDES=1
@@ -67,8 +68,8 @@ if %GENERATE_INCLUDES%==1 (
 REM ---------------------------------------------
 REM Building app
 
-if "%~1"=="-r" set BUILD=release
-if "%~1"=="-d" set BUILD=debug
+rem if "%~1"=="-r" set BUILD=release
+rem if "%~1"=="-d" set BUILD=debug
 
 set DEPFILE=./build/%BUILD%/dw_dependencies
 set OUTFILE=./build/%BUILD%/dw.exe
@@ -81,8 +82,15 @@ set L_FLAGS=-luser32.lib -Wl,-nodefaultlib:libcmt -l%DEPFILE:/=\%.lib
 
 if "%BUILD%"=="debug" (
     set CC_FLAGS_O=-O0 --debug -DDW_DEBUG
-) else (
+    set DEFINES_P=
+) 
+if "%BUILD%"=="profile" (
     set CC_FLAGS_O=-Ofast -DDW_NODEBUG
+    set DEFINES_P=-DDW_PROFILE -DTRACY_ENABLE
+)
+if "%BUILD%"=="release" (
+    set CC_FLAGS_O=-Ofast -DDW_NODEBUG
+    set DEFINES_P=
 )
 
 if not exist "./build/%BUILD%" (
@@ -94,14 +102,14 @@ rem TODO_DW: Just shaderc adds 80MB to dependency lib size. Maybe this should be
 set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib %VULKAN_SDK_PATH%/Lib/shaderc_combined.lib
 if %BUILD_DEPENDENCIES%==1 (
     echo Building %DEPFILE%.lib...
-    %CC% %CC_FLAGS% -Ofast -Wno-nullability-completeness -c %DEFINES% ./src/dependencies.cpp -o %DEPFILE:/=\%.obj
+    %CC% %CC_FLAGS% -Ofast -Wno-nullability-completeness -c %DEFINES% %DEFINES_P% ./src/dependencies.cpp -o %DEPFILE:/=\%.obj
     lib /OUT:%DEPFILE:/=\%.lib %DEPFILE:/=\%.obj %DEPS% >nul
     del "%DEPFILE:/=\%.obj"
 )
 
 rem Building app
 echo Building %OUTFILE% [%BUILD%]...
-%CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% ./src/main.cpp %L_FLAGS% -o %OUTFILE%
+%CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% ./src/main.cpp %L_FLAGS% -o %OUTFILE%
 
 rem Get end time:
 for /F "tokens=1-4 delims=:.," %%a in ("%time%") do (
@@ -120,7 +128,7 @@ if %cc% lss 10 set cc=0%cc%
 echo %GREEN%Build finished in %mm%:%ss%:%cc%.%RESET% 
 
 rem Compile_commands.json generation (for clangd)
-set COMPILE_COMMAND=clang %CC_FLAGS% %DEFINES% -DDW_DEBUG -c ./src/main.cpp
+set COMPILE_COMMAND=clang %CC_FLAGS% %DEFINES% -DDW_DEBUG -DDW_PROFILE -c ./src/main.cpp
 set CURR_DIR=%~dp0
 set CURR_DIR=!CURR_DIR:\=/!
 set CURR_DIR=%CURR_DIR:~0,-1%

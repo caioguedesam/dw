@@ -7,8 +7,8 @@
 
 #ifndef DW_DEBUG
 void pushTimestamp(GpuTimestamp* pTimestamp, double value) {}
-double getLastTimestampMS(GpuTimestamp* pTimestamp) { return 0.0 }
-double getTimestampMS(GpuTimestamp* pTimestamp, uint32 index) { return 0.0 }
+double getLastTimestampMS(GpuTimestamp* pTimestamp) { return 0.0; }
+double getTimestampMS(GpuTimestamp* pTimestamp, uint32 index) { return 0.0; }
 
 void initGpuTimer(Renderer* pRenderer, GpuTimer* pGpuTimer) {}
 void destroyGpuTimer(GpuTimer* pGpuTimer) {}
