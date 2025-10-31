@@ -41,7 +41,7 @@ if %GENERATE_INCLUDES%==1 (
     REM Write header
     echo #pragma once > "%INCLUDES_OUTFILE%"
     
-    set "IGNORED_FILES=src/third_party/ src/main.cpp src/dependencies.cpp"
+    set "IGNORED_FILES=src/third_party/ src/main.cpp src/dw.cpp src/dependencies.cpp"
     
     REM Loop recursively through .hpp and .cpp files
     for /r src %%f in (*.hpp *.cpp) do (
@@ -72,7 +72,7 @@ rem if "%~1"=="-r" set BUILD=release
 rem if "%~1"=="-d" set BUILD=debug
 
 set DEPFILE=./build/%BUILD%/dw_dependencies
-set OUTFILE=./build/%BUILD%/dw.exe
+set OUTFILE=./build/%BUILD%/dw
 
 set VULKAN_SDK_PATH=%VULKAN_SDK:\=/%
 set CC=clang
@@ -109,7 +109,11 @@ if %BUILD_DEPENDENCIES%==1 (
 
 rem Building app
 echo Building %OUTFILE% [%BUILD%]...
-%CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% ./src/main.cpp %L_FLAGS% -o %OUTFILE%
+set CC_DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib
+rem %CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% ./src/main.cpp %L_FLAGS% -o %OUTFILE%
+%CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% -c ./src/dw.cpp -o %OUTFILE%.obj
+lib /OUT:%OUTFILE:/=\%.lib %OUTFILE:/=\%.obj %CC_DEPS% >nul
+del "%OUTFILE:/=\%.obj"
 
 rem Get end time:
 for /F "tokens=1-4 delims=:.," %%a in ("%time%") do (
