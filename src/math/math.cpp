@@ -159,6 +159,16 @@ v3f operator*(v3f a, float b)
     };
 }
 
+v3f operator*(float a, v3f b)
+{
+    return
+    {
+        b.x * a,
+        b.y * a,
+        b.z * a
+    };
+}
+
 float dot(v3f a, v3f b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -262,6 +272,17 @@ v4f operator*(v4f a, float b)
         a.y * b,
         a.z * b,
         a.w * b
+    };
+}
+
+v4f operator*(float a, v4f b)
+{
+    return
+    {
+        b.x * a,
+        b.y * a,
+        b.z * a,
+        b.w * a
     };
 }
 

@@ -1,4 +1,5 @@
 #include "volumes.hpp"
+#include "../dw/src/core/debug.hpp"
 
 AABB transform(AABB aabb, m4f transform)
 {
@@ -57,4 +58,60 @@ v3f getSize(AABB aabb)
 v3f getCenter(AABB aabb)
 {
     return aabb.min + getSize(aabb) * 0.5;
+}
+
+void sphere(float radius, uint32 stacks, uint32 slices,
+        float* pVertices, uint16* pIndices, 
+        uint32* pIndexCount, uint32* pVertexCount)
+{
+    ASSERT(stacks >= 2 && slices >= 3);
+    ASSERT(pVertices && pIndices);
+    uint32 vertexCount = (stacks + 1) * (slices + 1);
+    uint32 indexCount = stacks * slices * 6;    // 2 tris per quad
+    
+    // Vertices
+    uint32 vi = 0;
+    for(uint32 i = 0; i <= stacks; i++)
+    {
+        float v = (float)i / (float)stacks;
+        float phi = v * (float)PI;
+
+        for(uint32 j = 0; j <= slices; j++)
+        {
+            float u = (float)j / (float)slices;
+            float theta = u * 2.f * (float)PI;
+
+            float x = radius * sinf(phi) * cosf(theta);
+            float y = radius * cosf(phi);
+            float z = radius * sinf(phi) * sinf(theta);
+
+            pVertices[vi++] = x;
+            pVertices[vi++] = y;
+            pVertices[vi++] = z;
+        }
+    }
+
+    // Indices
+    uint32 ii = 0;
+    for(uint32 i = 0; i < stacks; i++)
+    {
+        for(uint32 j = 0; j < stacks; j++)
+        {
+            uint16 a = (uint16)(i       * (slices + 1) + j);
+            uint16 b = (uint16)((i + 1) * (slices + 1) + j);
+            uint16 c = (uint16)((i + 1) * (slices + 1) + (j + 1));
+            uint16 d = (uint16)(i       * (slices + 1) + (j + 1));
+
+            pIndices[ii++] = a;
+            pIndices[ii++] = c;
+            pIndices[ii++] = b;
+
+            pIndices[ii++] = a;
+            pIndices[ii++] = d;
+            pIndices[ii++] = c;
+        }
+    }
+
+    if(pIndexCount) *pIndexCount = indexCount;
+    if(pVertexCount) *pVertexCount = vertexCount;
 }

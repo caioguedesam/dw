@@ -32,3 +32,8 @@ struct Frustum
 Frustum getFrustum(m4f view, m4f proj);
 bool inFrustum(v3f p, Frustum f);
 bool inFrustum(AABB aabb, Frustum f);
+
+// Misc
+void sphere(float radius, uint32 stacks, uint32 slices,
+        float* pVertices, uint16* pIndices, 
+        uint32* pIndexCount = NULL, uint32* pVertexCount = NULL);

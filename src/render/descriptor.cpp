@@ -3,7 +3,7 @@
 #include "buffer.hpp"
 #include "texture.hpp"
 #include "../core/debug.hpp"
-#include "src/core/memory.hpp"
+#include "../core/memory.hpp"
 #include "vulkan/vulkan_core.h"
 
 void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet** ppSet)

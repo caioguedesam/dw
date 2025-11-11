@@ -62,6 +62,7 @@ v3f  operator- (v3f a, v3f b);
 v3f  operator- (v3f a);
 v3f  operator* (v3f a, v3f b);
 v3f  operator* (v3f a, float b);
+v3f  operator* (float a, v3f b);
 
 float   dot       (v3f a, v3f b);
 v3f     cross     (v3f a, v3f b);
@@ -90,6 +91,7 @@ v4f  operator+ (v4f a, v4f b);
 v4f  operator- (v4f a, v4f b);
 v4f  operator* (v4f a, v4f b);
 v4f  operator* (v4f a, float b);
+v4f  operator* (float a, v4f b);
 
 v4f to4f(v3f v, float w);
 v3f to3f(v4f v);
