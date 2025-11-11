@@ -12,7 +12,7 @@ struct CameraDesc
     float mFar = 0;
 
     float mSpeed = 20.f;
-    float mAngularSpeed = 10.f;
+    float mAngularSpeed = TO_RAD(360.f);
     float mSmoothing = 10.f;
 };
 

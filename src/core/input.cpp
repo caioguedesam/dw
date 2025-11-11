@@ -38,8 +38,6 @@ void pollCursor(CursorState* pState)
     float deltaY = posY - prevY;
     float deltaLen = sqrtf(deltaX * deltaX + deltaY * deltaY);
 
-    pState->mPosX = posX;
-    pState->mPosY = posY;
     if(deltaLen < 1e-5)
     {
         pState->mDeltaX = 0;
@@ -64,8 +62,12 @@ void pollCursor(CursorState* pState)
 
         ret = ScreenToClient(GetActiveWindow(), &lockPoint);
         ASSERT(ret);
-        cursorPoint = lockPoint;
+        posX = (float)lockPoint.x;
+        posY = (float)lockPoint.y;
     }
+
+    pState->mPosX = posX;
+    pState->mPosY = posY;
 }
 
 void getPos(CursorState* pState, int32* pX, int32* pY)
