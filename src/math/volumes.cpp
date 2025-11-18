@@ -66,8 +66,8 @@ void sphere(float radius, uint32 stacks, uint32 slices,
 {
     ASSERT(stacks >= 2 && slices >= 3);
     ASSERT(pVertices && pIndices);
-    uint32 vertexCount = (stacks + 1) * (slices + 1);
-    uint32 indexCount = stacks * slices * 6;    // 2 tris per quad
+    uint32 vertexCount = 0;
+    uint32 indexCount = 0;
     
     // Vertices
     uint32 vi = 0;
@@ -88,6 +88,7 @@ void sphere(float radius, uint32 stacks, uint32 slices,
             pVertices[vi++] = x;
             pVertices[vi++] = y;
             pVertices[vi++] = z;
+            vertexCount++;
         }
     }
 
@@ -95,20 +96,28 @@ void sphere(float radius, uint32 stacks, uint32 slices,
     uint32 ii = 0;
     for(uint32 i = 0; i < stacks; i++)
     {
-        for(uint32 j = 0; j < stacks; j++)
+        for(uint32 j = 0; j < slices; j++)
         {
             uint16 a = (uint16)(i       * (slices + 1) + j);
             uint16 b = (uint16)((i + 1) * (slices + 1) + j);
             uint16 c = (uint16)((i + 1) * (slices + 1) + (j + 1));
             uint16 d = (uint16)(i       * (slices + 1) + (j + 1));
 
-            pIndices[ii++] = a;
-            pIndices[ii++] = c;
-            pIndices[ii++] = b;
+            if(i != stacks - 1)
+            {
+                pIndices[ii++] = a;
+                pIndices[ii++] = c;
+                pIndices[ii++] = b;
+                indexCount += 3;
+            }
 
-            pIndices[ii++] = a;
-            pIndices[ii++] = d;
-            pIndices[ii++] = c;
+            if(i != 0)
+            {
+                pIndices[ii++] = a;
+                pIndices[ii++] = d;
+                pIndices[ii++] = c;
+                indexCount += 3;
+            }
         }
     }
 
