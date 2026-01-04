@@ -1,6 +1,6 @@
 #include "asset.hpp"
 #include "../core/file.hpp"
-#include "src/render/buffer.hpp"
+#include "../render/buffer.hpp"
 #undef STB_IMAGE_IMPLEMENTATION
 #include "../third_party/stb_image.h"
 #include "../core/debug.hpp"

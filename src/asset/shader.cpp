@@ -5,7 +5,7 @@
 #include "../core/debug.hpp"
 
 #include "shaderc/shaderc.h"
-#include "src/core/memory.hpp"
+#include "../core/memory.hpp"
 
 shaderc_include_result* resolveInclude(void* pUserData, const char* requested, int32 requestType,
         const char* requesting, size_t includeDepth)

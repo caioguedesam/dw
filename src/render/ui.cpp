@@ -5,7 +5,7 @@
 #include "../third_party/imgui/backends/imgui_impl_vulkan.h"
 #include "../third_party/imgui/backends/imgui_impl_win32.h"
 #include "../third_party/implot/implot.h"
-#include "src/render/render.hpp"
+#include "../render/render.hpp"
 #include "vulkan/vulkan_core.h"
 
 void initUI(UIDesc desc, UIState* pUI)

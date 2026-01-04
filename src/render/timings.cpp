@@ -1,7 +1,7 @@
 #include "timings.hpp"
 #include "render.hpp"
 #include "../core/debug.hpp"
-#include "src/core/memory.hpp"
+#include "../core/memory.hpp"
 #include "vulkan/vulkan_core.h"
 #include "ui.hpp"
 
