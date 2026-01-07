@@ -69,6 +69,7 @@ typedef unsigned char byte;
 #define CHECK_BIT(x, pos) ((x) & (1UL << (pos)))
 
 #define PTR_DIFF(PA, PB) (uint64)((byte*)(PA) - (byte*)(PB))
+#define PTR_OFFSET(P, OFFSET) ((void*)((char*)(P) + (OFFSET)))
 
 #define DEFAULT_ARRAY(ARR, SIZE) for(int32 _arr = 0; _arr < (SIZE); _arr++) { (ARR)[_arr] = {}; }
 
