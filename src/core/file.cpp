@@ -1,5 +1,6 @@
 #include "file.hpp"
 #include "debug.hpp"
+#include "string.hpp"
 
 // TODO_DW: MULTIPLATFORM
 
@@ -53,7 +54,7 @@ String getFileName(String path, bool ext)
     return result;
 }
 
-String getFileDir(String path)
+String getFileDir(String path, bool trailingSlash)
 {
     ASSERT(pathExists(path));
     ASSERT(!pathIsDir(path));
@@ -62,7 +63,9 @@ String getFileDir(String path)
     if(lastSlash == -1) lastSlash = rfind(path, '/');
     ASSERT(lastSlash != -1);
 
-    return substr(path, 0, lastSlash);  // No trailing slash
+    return !trailingSlash 
+        ? substr(path, 0, lastSlash)
+        : substr(path, 0, lastSlash + 1);
 }
 
 uint64 getFileSize(String path)

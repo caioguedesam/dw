@@ -9,7 +9,7 @@ bool pathIsDir(String path);
 String getExt(String path);         // No dot before extension
 String getNoExt(String path);
 String getFileName(String path, bool ext = false);
-String getFileDir(String path);     // No trailing slash
+String getFileDir(String path, bool trailingSlash = false);
 uint64 getFileSize(String path);
 
 bool createFile(String path);

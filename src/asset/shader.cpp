@@ -13,7 +13,7 @@ shaderc_include_result* resolveInclude(void* pUserData, const char* requested, i
     ASSERT(requestType == shaderc_include_type_relative);
     Arena* pArena = (Arena*)pUserData;
 
-    String assetDir = getFileDir(str(requesting));
+    String assetDir = getFileDir(str(requesting), true);
     String assetName = join(pArena, assetDir, str(requested));
     String assetStr = readFileStr(pArena, assetName);
 
