@@ -454,8 +454,16 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
     layoutInfo.pSetLayouts = setLayouts;
-    layoutInfo.pushConstantRangeCount = 0;      // TODO_DW: Push constants
-    layoutInfo.pPushConstantRanges = NULL;
+    layoutInfo.pushConstantRangeCount = desc.mConstantBlockCount;
+    VkPushConstantRange pushConstantRanges[MAX_PIPELINE_CONSTANTS];
+    for(uint32 i = 0; i < desc.mConstantBlockCount; i++)
+    {
+        pushConstantRanges[i] = {};
+        pushConstantRanges[i].stageFlags = desc.mConstantBlocks[i].mShaderTypes;
+        pushConstantRanges[i].offset = 0;   // TODO_DW: Push constant range offsets?
+        pushConstantRanges[i].size = desc.mConstantBlocks[i].mSize;
+    }
+    layoutInfo.pPushConstantRanges = pushConstantRanges;
     VkPipelineLayout vkLayout;
     VkResult ret = vkCreatePipelineLayout(pRenderer->mVkDevice,
             &layoutInfo,
@@ -538,8 +546,16 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
     layoutInfo.pSetLayouts = setLayouts;
-    layoutInfo.pushConstantRangeCount = 0;      // TODO_DW: Push constants
-    layoutInfo.pPushConstantRanges = NULL;
+    layoutInfo.pushConstantRangeCount = desc.mConstantBlockCount;
+    VkPushConstantRange pushConstantRanges[MAX_PIPELINE_CONSTANTS];
+    for(uint32 i = 0; i < desc.mConstantBlockCount; i++)
+    {
+        pushConstantRanges[i] = {};
+        pushConstantRanges[i].stageFlags = desc.mConstantBlocks[i].mShaderTypes;
+        pushConstantRanges[i].offset = 0;   // TODO_DW: Push constant range offsets?
+        pushConstantRanges[i].size = desc.mConstantBlocks[i].mSize;
+    }
+    layoutInfo.pPushConstantRanges = pushConstantRanges;
     VkPipelineLayout vkLayout;
     VkResult ret = vkCreatePipelineLayout(pRenderer->mVkDevice,
             &layoutInfo,
@@ -1288,6 +1304,31 @@ void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
             setBinding, 
             1, &pDescriptorSet->mVkSet, 
             0, NULL);
+}
+
+
+void cmdSetConstants(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        uint32 constant, uint64 size, void* pData)
+{
+    ASSERT(pCmd && pPipeline && size && pData);
+    ASSERT(constant <= pPipeline->mDesc.mConstantBlockCount);
+    vkCmdPushConstants(pCmd->mVkCmd,
+            pPipeline->mVkLayout,
+            pPipeline->mDesc.mConstantBlocks[constant].mShaderTypes,
+            0, size,
+            pData);
+}
+
+void cmdSetConstants(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        uint32 constant, uint64 size, void* pData)
+{
+    ASSERT(pCmd && pPipeline && size && pData);
+    ASSERT(constant <= pPipeline->mDesc.mConstantBlockCount);
+    vkCmdPushConstants(pCmd->mVkCmd,
+            pPipeline->mVkLayout,
+            pPipeline->mDesc.mConstantBlocks[constant].mShaderTypes,
+            0, size,
+            pData);
 }
 
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h)

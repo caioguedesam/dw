@@ -256,7 +256,14 @@ enum ColorComponent : uint32
     COMPONENT_A   = VK_COLOR_COMPONENT_A_BIT,
 };
 
+struct ConstantBlock
+{
+    uint32 mShaderTypes = 0;
+    uint32 mSize = 0;
+};
+
 #define MAX_PIPELINE_RESOURCE_SETS 16
+#define MAX_PIPELINE_CONSTANTS 8
 struct GraphicsPipelineDesc
 {
     // Attachments
@@ -297,6 +304,10 @@ struct GraphicsPipelineDesc
                                 | COMPONENT_G
                                 | COMPONENT_B
                                 | COMPONENT_A;
+
+    // Constants
+    ConstantBlock mConstantBlocks[MAX_PIPELINE_CONSTANTS];
+    uint32 mConstantBlockCount = 0;
 };
 
 struct GraphicsPipeline
@@ -318,6 +329,10 @@ struct ComputePipelineDesc
 
     // Programmable stages
     Shader* pCS = NULL;
+
+    // Constants
+    ConstantBlock mConstantBlocks[MAX_PIPELINE_CONSTANTS];
+    uint32 mConstantBlockCount = 0;
 };
 
 struct ComputePipeline
@@ -411,6 +426,10 @@ void cmdBindDescriptorSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
         DescriptorSet* pDescriptorSet, uint32 setBinding);
 void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
         DescriptorSet* pDescriptorSet, uint32 setBinding);
+void cmdSetConstants(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
+        uint32 constant, uint64 size, void* pData);
+void cmdSetConstants(CommandBuffer* pCmd, ComputePipeline* pPipeline,
+        uint32 constant, uint64 size, void* pData);
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
 void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h);
