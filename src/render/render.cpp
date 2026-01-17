@@ -1393,12 +1393,16 @@ void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount)
     vkCmdDraw(pCmd->mVkCmd, vertexCount, instanceCount, 0, 0);
 }
 
-void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount)
+void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount,
+        uint32 indexOffset, uint32 vertexOffset)
 {
     ASSERT(pCmd);
     vkCmdDrawIndexed(pCmd->mVkCmd, 
-            indexCount, instanceCount, 
-            0, 0, 0);
+            indexCount, 
+            instanceCount,
+            indexOffset,
+            vertexOffset,
+            0);
 }
 
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z)

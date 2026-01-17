@@ -437,6 +437,7 @@ void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount);
-void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount);
+void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount,
+        uint32 indexOffset, uint32 vertexOffset);
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z);
 void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc);
