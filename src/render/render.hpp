@@ -1,5 +1,6 @@
 #pragma once
 #define VK_USE_PLATFORM_WIN32_KHR
+#include "../core/debug.hpp"
 #include "../core/app.hpp"
 #include "../core/memory.hpp"
 #include "texture.hpp"
@@ -345,6 +346,16 @@ struct ComputePipeline
 
 void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline** ppPipeline);
 void removePipeline(Renderer* pRenderer, ComputePipeline** ppPipeline);
+
+struct IndirectDraw
+{
+    uint32  mIndexCount     = 0;
+    uint32  mInstanceCount  = 0;
+    uint32  mFirstIndex     = 0;
+    int32   mVertexOffset   = 0;
+    uint32  mFirstInstance  = 0;
+};
+STATIC_ASSERT(sizeof(IndirectDraw) == sizeof(VkDrawIndexedIndirectCommand));
 
 // --------------------------------------
 // Renderer
