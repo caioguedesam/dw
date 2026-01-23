@@ -754,6 +754,11 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
             VkPhysicalDeviceFeatures features;
             vkGetPhysicalDeviceProperties(device, &properties);
             vkGetPhysicalDeviceFeatures(device, &features);
+
+            uint32 major = VK_VERSION_MAJOR(properties.apiVersion);
+            uint32 minor = VK_VERSION_MINOR(properties.apiVersion);
+            if(major < 1 || minor < 3) continue;
+
             if(properties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) continue;
             if(!features.samplerAnisotropy) continue;
             if(!features.fillModeNonSolid) continue;
@@ -765,6 +770,9 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         ASSERT(selectedDevice != -1);
         vkPhysicalDevice = devices[selectedDevice];
         vkGetPhysicalDeviceProperties(vkPhysicalDevice, &vkPhysicalDeviceProps);
+
+        ASSERT(VK_VERSION_MAJOR(vkPhysicalDeviceProps.apiVersion) >= 1);
+        ASSERT(VK_VERSION_MINOR(vkPhysicalDeviceProps.apiVersion) >= 3);
     }
 
     // Initializing logical device and command queue
@@ -810,22 +818,29 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         float priority = 1;
         queueInfo.pQueuePriorities = &priority;
 
+        VkPhysicalDeviceVulkan12Features features12 = {};
+        features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        features12.drawIndirectCount = VK_TRUE;
+        features12.descriptorBindingPartiallyBound = VK_TRUE;
+        features12.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+        features12.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+        features12.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+        features12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+
+        VkPhysicalDeviceVulkan11Features features11 = {};
+        features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        features11.shaderDrawParameters = VK_TRUE;
+        features11.pNext = &features12;
+
         VkPhysicalDeviceFeatures features = {};
         features.samplerAnisotropy = VK_TRUE;
         features.fillModeNonSolid = VK_TRUE;
         features.wideLines = VK_TRUE;
-        VkPhysicalDeviceDescriptorIndexingFeatures indexingFeatures = {};
-        indexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-        indexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-        indexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
-        indexingFeatures.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
-        indexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
-        indexingFeatures.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
 
         VkPhysicalDeviceDynamicRenderingFeatures dynamicFeature = {};
         dynamicFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
         dynamicFeature.dynamicRendering = VK_TRUE;
-        dynamicFeature.pNext = &indexingFeatures;
+        dynamicFeature.pNext = &features11;
 
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1199,6 +1214,19 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
             1, &range);
 }
 
+void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint64 dstOffset, uint64 size, uint32 data)
+{
+    ASSERT(pCmd && pDst && size);
+    vkCmdFillBuffer(pCmd->mVkCmd, 
+            pDst->mVkBuffer, 
+            dstOffset, size, data);
+}
+
+void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint32 data)
+{
+    cmdFillBuffer(pCmd, pDst, 0, pDst->mDesc.mSize, data);
+}
+
 void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
 {
     ASSERT(pCmd);
@@ -1403,6 +1431,19 @@ void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount
             indexOffset,
             vertexOffset,
             0);
+}
+
+void cmdDrawIndexedIndirect(CommandBuffer* pCmd, Buffer* pDrawCmds, Buffer* pDrawCmdCount,
+        uint32 maxDrawCount)
+{
+    ASSERT(pCmd);
+    vkCmdDrawIndexedIndirectCount(pCmd->mVkCmd,
+            pDrawCmds->mVkBuffer,
+            0,
+            pDrawCmdCount->mVkBuffer,
+            0,
+            maxDrawCount,
+            sizeof(VkDrawIndexedIndirectCommand));
 }
 
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z)

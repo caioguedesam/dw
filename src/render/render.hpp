@@ -431,6 +431,8 @@ void cmdRenderTargetBarrier(CommandBuffer* pCmd, uint32 barrierCount, RenderTarg
 void cmdSwapChainBarrier(CommandBuffer* pCmd, SwapChain* pSwapChain, ImageLayout newLayout);
 void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint64 dstOffset, uint64 size, uint32 data);
+void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint32 data);
 void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);
 void cmdUnbindRenderTargets(CommandBuffer* pCmd);
 void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
@@ -452,5 +454,7 @@ void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount);
 void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount,
         uint32 indexOffset, uint32 vertexOffset);
+void cmdDrawIndexedIndirect(CommandBuffer* pCmd, Buffer* pDrawCmds, Buffer* pDrawCmdCount,
+        uint32 maxDrawCount);
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z);
 void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc);
