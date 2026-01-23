@@ -95,6 +95,7 @@ v4f  operator* (float a, v4f b);
 
 v4f to4f(v3f v, float w);
 v3f to3f(v4f v);
+v4f to4f(float* f);
 
 float   dot       (v4f a, v4f b);
 float   magn2     (v4f v);

@@ -302,6 +302,14 @@ v3f to3f(v4f v)
     };
 }
 
+v4f to4f(float* f)
+{
+    return
+    {
+        f[0], f[1], f[2], f[3]
+    };
+}
+
 float dot(v4f a, v4f b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
