@@ -26,6 +26,9 @@ void initAssetManager(AssetManagerDesc desc, AssetManager* pAssetManager);
 void destroyAssetManager(AssetManager* pAssetManager);
 
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
-        String path, Shader** ppOut);
+        String path, 
+        uint32 shaderType, String* pDefines, uint32 definesCount,
+        Shader** ppOut);
+
 void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer,
         String path, bool flipVertical, Texture** ppOut);

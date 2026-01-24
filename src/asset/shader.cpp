@@ -33,7 +33,10 @@ void releaseInclude(void* pUserData, shaderc_include_result* pResult)
 {
 }
 
-void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, String path, Shader** ppOut)
+void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, 
+        String path, 
+        uint32 shaderType, String* pDefines, uint32 definesCount, 
+        Shader** ppOut)
 {
     ASSERT(pAssetManager && pRenderer && ppOut);
     ASSERT(*ppOut == NULL);
@@ -41,28 +44,24 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, String path, S
 
     // Shader bytecode doesn't need to persist, using temp arena.
     String code = readFileStr(&pAssetManager->mArenaTemp, path);
-    String ext = getExt(path);
 
-    ShaderType type;
+    ShaderType type = (ShaderType)shaderType;
     shaderc_shader_kind kind;
-    if(ext == "vert")
+    if(type == SHADER_TYPE_VERT)
     {
-        type = SHADER_TYPE_VERT;
         kind = shaderc_vertex_shader;
     }
-    else if(ext == "frag")
+    else if(type == SHADER_TYPE_FRAG)
     {
-        type = SHADER_TYPE_FRAG;
         kind = shaderc_fragment_shader;
     }
-    else if(ext == "comp")
+    else if(type == SHADER_TYPE_COMP)
     {
-        type = SHADER_TYPE_COMP;
         kind = shaderc_compute_shader;
     }
     else
     {
-        ASSERTF(0, "Unsupported shader type for extension %s", cstr(ext));
+        ASSERTF(0, "Unsupported shader type for shader %s", cstr(path));
     }
 
     shaderc_compiler_t compiler = shaderc_compiler_initialize();
@@ -78,6 +77,37 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, String path, S
             resolveInclude, 
             releaseInclude, 
             &pAssetManager->mArenaTemp);
+
+    // Defining type of shader
+    String typeStr = {};
+    if(type == SHADER_TYPE_VERT)
+    {
+        typeStr = str("VERTEX_SHADER");
+    }
+    if(type == SHADER_TYPE_FRAG)
+    {
+        typeStr = str("PIXEL_SHADER");
+    }
+    if(type == SHADER_TYPE_COMP)
+    {
+        typeStr = str("COMPUTE_SHADER");
+    }
+    shaderc_compile_options_add_macro_definition(
+            options, 
+            cstr(typeStr), 
+            typeStr.mLen, 
+            "1", 1);
+
+    // Add user defined precompilation options
+    // TODO(caio): Add support for custom preprocessor macros
+    for(uint32 i = 0; i < definesCount; i++)
+    {
+        shaderc_compile_options_add_macro_definition(
+                options, 
+                cstr(pDefines[i]), 
+                pDefines[i].mLen, 
+                "1", 1);
+    }
 
     shaderc_compilation_result_t compiled = shaderc_compile_into_spv(
             compiler,
