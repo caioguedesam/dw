@@ -25,7 +25,9 @@ void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet
         vkBindings[i].binding = i;
         vkBindings[i].stageFlags = VK_SHADER_STAGE_ALL;
         vkBindings[i].descriptorType = (VkDescriptorType)desc.mResources[i].mType;
-        vkBindings[i].descriptorCount = (VkDescriptorType)desc.mResources[i].mCount;
+        // Here the descriptor count must be >= the max index statically used by the shader.
+        // The actual count is bound later, using partially bound descriptor sets.
+        vkBindings[i].descriptorCount = (VkDescriptorType)desc.mResources[i].mMaxCount;
 
         vkBindingFlags[i] =
             VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
@@ -106,18 +108,35 @@ void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet
             } break;
             case DESCRIPTOR_TEXTURE:
             {
-                Texture* pStart = (Texture*)res.pData;
-                uint32 textureWriteStart = cursor;
-                for(uint32 j = 0; j < res.mCount; j++)
+                if(res.mCount == 1)
                 {
-                    Texture* pTexture = &pStart[j];
+                    // Single texture
+                    Texture* pTexture = (Texture*)res.pData;
                     vkImageInfos[cursor] = {};
                     vkImageInfos[cursor].imageView = pTexture->mVkImageView;
                     vkImageInfos[cursor].imageLayout = (VkImageLayout)pTexture->mDesc.mBaseLayout;
                     vkImageInfos[cursor].sampler = VK_NULL_HANDLE;
+                    vkWrites[i].pImageInfo = &vkImageInfos[cursor];
                     cursor++;
                 }
-                vkWrites[i].pImageInfo = &vkImageInfos[textureWriteStart];
+                else
+                {
+                    // Texture array
+                    Texture** pTextures = (Texture**)res.pData;
+                    uint32 writeStart = cursor;
+
+                    for(uint32 t = 0; t < res.mCount; t++)
+                    {
+                        Texture* pTexture = pTextures[t];
+                        vkImageInfos[cursor] = {};
+                        vkImageInfos[cursor].imageView = pTexture->mVkImageView;
+                        vkImageInfos[cursor].imageLayout = (VkImageLayout)pTexture->mDesc.mBaseLayout;
+                        vkImageInfos[cursor].sampler = VK_NULL_HANDLE;
+                        cursor++;
+                    }
+
+                    vkWrites[i].pImageInfo = &vkImageInfos[writeStart];
+                }
             } break;
             case DESCRIPTOR_SAMPLER:
             {

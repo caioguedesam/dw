@@ -955,7 +955,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     {
         uint64 stagingSize = MB(128);
         BufferDesc stagingDesc = {};
-        stagingDesc.mType = BUFFER_TYPE_STAGING;
+        stagingDesc.mType = BUFFER_TYPE_TRANSFER_SRC;
         stagingDesc.mCount = 1;
         stagingDesc.mSize = stagingSize;
         stagingDesc.mStride = stagingSize;

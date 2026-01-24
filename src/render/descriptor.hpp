@@ -21,6 +21,7 @@ struct Descriptor
     DescriptorType mType;
     void* pData = NULL;
     uint32 mCount = 1;
+    uint32 mMaxCount = 1;
 };
 
 #define MAX_SHADER_RESOURCES_PER_SET 16
