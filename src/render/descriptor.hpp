@@ -24,7 +24,7 @@ struct Descriptor
     uint32 mMaxCount = 1;
 };
 
-#define MAX_SHADER_RESOURCES_PER_SET 16
+#define MAX_SHADER_RESOURCES_PER_SET 32
 struct DescriptorSetDesc
 {
     Descriptor mResources[MAX_SHADER_RESOURCES_PER_SET];

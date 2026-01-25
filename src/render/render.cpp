@@ -228,7 +228,8 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
     textureDesc.mUsage =
         TEXTURE_USAGE_COLOR_TARGET |
         TEXTURE_USAGE_TRANSFER_SRC |
-        TEXTURE_USAGE_TRANSFER_DST;
+        TEXTURE_USAGE_TRANSFER_DST |
+        TEXTURE_USAGE_SAMPLED;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
@@ -258,7 +259,8 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
     textureDesc.mUsage =
         TEXTURE_USAGE_DEPTH_TARGET |
         TEXTURE_USAGE_TRANSFER_SRC |
-        TEXTURE_USAGE_TRANSFER_DST;
+        TEXTURE_USAGE_TRANSFER_DST |
+        TEXTURE_USAGE_SAMPLED;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
