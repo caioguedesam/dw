@@ -89,7 +89,7 @@ void initSwapChain(Renderer* pRenderer, SwapChain* pSwapChain)
     ASSERT(pRenderer && pSwapChain);
     *pSwapChain = {};
 
-    // Required format is BGRA8_SRGB, SRGB_NONLINEAR (Swap chain performs gamma correction, not shaders)
+    // Required format is BGRA8_UNORM, SRGB_NONLINEAR (Shaders must perform gamma correction, not swap chain)
     // Fallback is first format found.
     uint32 formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(pRenderer->mVkPhysicalDevice, pRenderer->mVkSurface, &formatCount, NULL);
@@ -100,7 +100,7 @@ void initSwapChain(Renderer* pRenderer, SwapChain* pSwapChain)
     VkSurfaceFormatKHR format = formats[0];
     for(uint32 i = 0; i < formatCount; i++)
     {
-        if(formats[i].format == VK_FORMAT_B8G8R8A8_SRGB &&
+        if(formats[i].format == VK_FORMAT_B8G8R8A8_UNORM &&
             formats[i].colorSpace == VK_COLORSPACE_SRGB_NONLINEAR_KHR)
         {
             format = formats[i];
