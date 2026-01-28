@@ -8,7 +8,7 @@
 #include "../render/render.hpp"
 
 void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path, 
-        bool flipVertical, Texture** ppOut)
+        uint32 format, bool flipVertical, Texture** ppOut)
 {
     ASSERT(pAssetManager && pRenderer && ppOut);
     ASSERT(*ppOut == NULL);
@@ -30,7 +30,7 @@ void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path,
     desc.mSamples = 1;
     desc.mMipCount = getMaxMipCount(width, height);
     desc.mType = TEXTURE_TYPE_2D;
-    desc.mFormat = FORMAT_RGBA8_SRGB;
+    desc.mFormat = (ImageFormat)format;
     desc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;
     desc.mUsage = TEXTURE_USAGE_SAMPLED
         | TEXTURE_USAGE_TRANSFER_SRC

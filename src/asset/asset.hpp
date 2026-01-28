@@ -31,4 +31,4 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
         Shader** ppOut);
 
 void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer,
-        String path, bool flipVertical, Texture** ppOut);
+        String path, uint32 format, bool flipVertical, Texture** ppOut);
