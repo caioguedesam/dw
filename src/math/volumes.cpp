@@ -1,7 +1,8 @@
 #include "volumes.hpp"
-#include "../dw/src/core/debug.hpp"
+#include "../core/debug.hpp"
+#include "../math/math.hpp"
 
-AABB transform(AABB aabb, m4f transform)
+AABB transformAABB(AABB aabb, m4f transform)
 {
     // TODO_DW: MATH
     // This performs a lot of calculations that could be optimized to less
@@ -123,4 +124,39 @@ void sphere(float radius, uint32 stacks, uint32 slices,
 
     if(pIndexCount) *pIndexCount = indexCount;
     if(pVertexCount) *pVertexCount = vertexCount;
+}
+
+bool inFrustum(v3f p, Frustum f)
+{
+    for(uint32 i = 0; i < 6; i++)
+    {
+        float sdf = distanceToPlane(p, f.planes[i]);
+        if(sdf < 0.f)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool inFrustum(AABB aabb, Frustum f)
+{
+    // AABB is in frustum if, for each plane, the point furthest along the plane's normal
+    // is inside its half-space.
+    for(uint32 i = 0; i < 6; i++)
+    {
+        // Select point on AABB that's furthest along plane normal
+        v3f p;
+        p.x = f.planes[i].x < 0.f ? aabb.min.x : aabb.max.x;
+        p.y = f.planes[i].y < 0.f ? aabb.min.y : aabb.max.y;
+        p.z = f.planes[i].z < 0.f ? aabb.min.z : aabb.max.z;
+
+        // Positive distance means in frustum half-space.
+        float sdf = distanceToPlane(p, f.planes[i]);
+        if(sdf < 0.f)
+        {
+            return false;
+        }
+    }
+    return true;
 }

@@ -1,6 +1,6 @@
 #pragma once
-#include "../core/app.hpp"
 #include "../math/math.hpp"
+#include "../math/volumes.hpp"
 
 float fovHtoV(float fovX, float aspect);
 
@@ -34,3 +34,6 @@ void updateCamera(Camera* pCamera, float dt);
 
 m4f getView(Camera* pCamera);
 m4f getProj(Camera* pCamera);
+
+void getFrustumPoints(Camera* pCamera, v3f* pOut);
+Frustum getFrustum(Camera* pCamera);

@@ -64,6 +64,8 @@ v3f  operator* (v3f a, v3f b);
 v3f  operator* (v3f a, float b);
 v3f  operator* (float a, v3f b);
 
+v3f to3f(float* f);
+
 float   dot       (v3f a, v3f b);
 v3f     cross     (v3f a, v3f b);
 float   magn2     (v3f v);
@@ -113,7 +115,8 @@ v3f rotate(v3f p, float angle, v3f axis);
 // Planes (v4f -> coefficients of plane equation)
 typedef v4f plane;
 plane getPlane(v3f p, v3f n);
-plane getPlane(v3f p, v3f a, v3f b);
+plane getPlane(v3f p0, v3f p1, v3f p2);
+float distanceToPlane(v3f o, plane p);
 
 // Matrices
 struct m4f

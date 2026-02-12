@@ -1,5 +1,6 @@
 #pragma once
 #include "math.hpp"
+struct Camera;
 
 // AABB
 struct AABB
@@ -8,28 +9,17 @@ struct AABB
     v3f max = {0,0,0};
 };
 
-AABB transform(AABB aabb, m4f transform);
+AABB transformAABB(AABB aabb, m4f transform);
 v3f getSize(AABB aabb);
 v3f getCenter(AABB aabb);
 
 // Frustum
 struct Frustum
 {
-    // TODO_DW: MATH Not sure if I need all this point data.
-    // Frustum points:
-    //
-    //                  4 ------------- 5
-    //  0 ----- 1       |               |
-    //  |   N   |       |       F       |
-    //  3 ----- 2       |               |
-    //                  7 ------------- 6
-    //
-    v3f points[8];
-    // Frustum planes (in order): left, right, bottom, top, near, far
+    // Planes (in order): near, far, left, right, bottom, top
     plane planes[6];
 };
 
-Frustum getFrustum(m4f view, m4f proj);
 bool inFrustum(v3f p, Frustum f);
 bool inFrustum(AABB aabb, Frustum f);
 

@@ -195,7 +195,7 @@ bool testAABB()
 
     // Transform test: translate by (2,3,4)
     m4f T = translation({2, 3, 4});
-    AABB moved = transform(box, T);
+    AABB moved = transformAABB(box, T);
     ASSERT(eqf(moved.min.x, 2.0f));
     ASSERT(eqf(moved.min.y, 3.0f));
     ASSERT(eqf(moved.min.z, 4.0f));
@@ -205,7 +205,7 @@ bool testAABB()
 
     // Transform test: uniform scale by 2
     m4f S = scale(2.0f);
-    AABB scaled = transform(box, S);
+    AABB scaled = transformAABB(box, S);
     ASSERT(eqf(scaled.min.x, 0.0f));
     ASSERT(eqf(scaled.max.x, 2.0f));
     ASSERT(eqf(scaled.max.y, 4.0f));
@@ -213,7 +213,7 @@ bool testAABB()
 
     // Transform test: scale + translate
     m4f M = matMul(T, S);
-    AABB st = transform(box, M);
+    AABB st = transformAABB(box, M);
     ASSERT(eqf(st.min.x, 2.0f));
     ASSERT(eqf(st.max.x, 4.0f));
     ASSERT(eqf(st.min.y, 3.0f));

@@ -169,6 +169,11 @@ v3f operator*(float a, v3f b)
     };
 }
 
+v3f to3f(float* f)
+{
+    return { f[0], f[1], f[2] };
+}
+
 float dot(v3f a, v3f b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -389,12 +394,17 @@ plane getPlane(v3f p, v3f n)
     return result;
 }
 
-plane getPlane(v3f p, v3f a, v3f b)
+plane getPlane(v3f p0, v3f p1, v3f p2)
 {
-    a = normalize(a);
-    b = normalize(b);
+    v3f a = normalize(p1 - p0);
+    v3f b = normalize(p2 - p0);
     v3f n = normalize(cross(a, b));
-    return getPlane(p, n);
+    return getPlane(p0, n);
+}
+
+float distanceToPlane(v3f o, plane p)
+{
+    return dot(o, to3f(p)) + p.w;
 }
 
 m4f operator+(m4f a, m4f b)
