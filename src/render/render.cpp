@@ -1233,6 +1233,16 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
 {
     ASSERT(pCmd);
 
+    RenderTargetDesc mainRTDesc = {};
+    if(desc.mColorCount)
+    {
+        mainRTDesc = desc.mColorBindings[0].pTarget->mDesc;
+    }
+    else
+    {
+        mainRTDesc = desc.mDepthBinding.pTarget->mDesc;
+    }
+
     VkRenderingAttachmentInfo attachmentInfo[MAX_PIPELINE_RENDER_TARGETS];
     VkRenderingAttachmentInfo depthAttachmentInfo = {};
     for(uint32 i = 0; i < desc.mColorCount; i++)
@@ -1259,8 +1269,8 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
     VkRect2D renderArea = {};
     renderArea.offset = {0, 0};
     renderArea.extent = {
-        desc.mColorBindings[0].pTarget->mDesc.mWidth,
-        desc.mColorBindings[0].pTarget->mDesc.mHeight
+        mainRTDesc.mWidth,
+        mainRTDesc.mHeight
     };
 
     VkRenderingInfo info = {};
