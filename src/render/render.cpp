@@ -260,6 +260,7 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
         TEXTURE_USAGE_DEPTH_TARGET |
         TEXTURE_USAGE_TRANSFER_SRC |
         TEXTURE_USAGE_TRANSFER_DST |
+        TEXTURE_USAGE_STORAGE      |
         TEXTURE_USAGE_SAMPLED;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;

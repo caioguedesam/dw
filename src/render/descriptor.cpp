@@ -107,6 +107,7 @@ void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet
                 cursor++;
             } break;
             case DESCRIPTOR_TEXTURE:
+            case DESCRIPTOR_STORAGE_IMAGE:
             {
                 if(res.mCount == 1)
                 {
