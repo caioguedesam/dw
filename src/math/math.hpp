@@ -8,6 +8,8 @@
 #define TO_DEG(X) (X * (180.0 / PI))
 #define TO_RAD(X) (X * (PI / 180.0))
 
+#define SGN(X) (((X) > 0) ? 1 : (((X) < 0) ? -1 : 0))
+
 // Vectors
 #define DECLARE_VECTOR2(NAME, TYPE) \
 struct NAME                         \
@@ -111,6 +113,7 @@ quat quatConj(quat q);
 quat quatMul(quat a, quat b);
 v3f rotate(v3f p, quat q);
 v3f rotate(v3f p, float angle, v3f axis);
+quat slerp(quat q1, quat q2, float t);
 
 // Planes (v4f -> coefficients of plane equation)
 typedef v4f plane;
@@ -146,10 +149,13 @@ m4f identity();
 m4f transpose(m4f m);
 m4f inverse(m4f m);
 
+quat toQuat(m4f m);
+
 // Transform
 m4f translation(v3f pos);
 m4f rotation(quat q);
 m4f rotation(float angle, v3f axis);
+m4f rotation(v3f xAxis, v3f yAxis, v3f zAxis);
 m4f scale(float scale);
 m4f scale(v3f scale);
 

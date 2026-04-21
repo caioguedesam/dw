@@ -385,6 +385,65 @@ v3f rotate(v3f p, float angle, v3f axis)
     return rotate(p, quatAngleAxis(angle, axis));
 }
 
+quat slerp(quat q1, quat q2, float t)
+{
+    // Compute the cosine of the angle between the two quaternions
+    float dot = q1.x * q2.x + q1.y * q2.y + q1.z * q2.z + q1.w * q2.w;
+
+    // Ensure shortest path (q and -q represent same rotation)
+    if (dot < 0.0f)
+    {
+        dot = -dot;
+        q2.x = -q2.x;
+        q2.y = -q2.y;
+        q2.z = -q2.z;
+        q2.w = -q2.w;
+    }
+
+    // If very close, use normalized lerp (avoids division by small numbers)
+    if (dot > 0.9995f)
+    {
+        quat result;
+        result.x = q1.x + t * (q2.x - q1.x);
+        result.y = q1.y + t * (q2.y - q1.y);
+        result.z = q1.z + t * (q2.z - q1.z);
+        result.w = q1.w + t * (q2.w - q1.w);
+
+        // Normalize
+        float len = sqrtf(result.x*result.x + result.y*result.y +
+                          result.z*result.z + result.w*result.w);
+
+        if (len > 0.0f)
+        {
+            float invLen = 1.0f / len;
+            result.x *= invLen;
+            result.y *= invLen;
+            result.z *= invLen;
+            result.w *= invLen;
+        }
+
+        return result;
+    }
+
+    // Standard SLERP
+    float theta_0 = acosf(dot);        // angle between input quaternions
+    float theta   = theta_0 * t;       // angle to interpolate
+
+    float sin_theta   = sinf(theta);
+    float sin_theta_0 = sinf(theta_0);
+
+    float s0 = cosf(theta) - dot * (sin_theta / sin_theta_0);
+    float s1 = sin_theta / sin_theta_0;
+
+    quat result;
+    result.x = (s0 * q1.x) + (s1 * q2.x);
+    result.y = (s0 * q1.y) + (s1 * q2.y);
+    result.z = (s0 * q1.z) + (s1 * q2.z);
+    result.w = (s0 * q1.w) + (s1 * q2.w);
+
+    return result;
+}
+
 plane getPlane(v3f p, v3f n)
 {
     plane result;
@@ -596,6 +655,63 @@ m4f inverse(m4f m)
     };
 }
 
+quat toQuat(m4f m)
+{
+    quat q;
+
+    float trace = m.m00 + m.m11 + m.m22;
+
+    if (trace > 0.0f)
+    {
+        float s = sqrtf(trace + 1.0f) * 2.0f; // s = 4 * qw
+
+        q.w = 0.25f * s;
+        q.x = (m.m21 - m.m12) / s;
+        q.y = (m.m02 - m.m20) / s;
+        q.z = (m.m10 - m.m01) / s;
+    }
+    else if (m.m00 > m.m11 && m.m00 > m.m22)
+    {
+        float s = sqrtf(1.0f + m.m00 - m.m11 - m.m22) * 2.0f; // s = 4 * qx
+
+        q.w = (m.m21 - m.m12) / s;
+        q.x = 0.25f * s;
+        q.y = (m.m01 + m.m10) / s;
+        q.z = (m.m02 + m.m20) / s;
+    }
+    else if (m.m11 > m.m22)
+    {
+        float s = sqrtf(1.0f + m.m11 - m.m00 - m.m22) * 2.0f; // s = 4 * qy
+
+        q.w = (m.m02 - m.m20) / s;
+        q.x = (m.m01 + m.m10) / s;
+        q.y = 0.25f * s;
+        q.z = (m.m12 + m.m21) / s;
+    }
+    else
+    {
+        float s = sqrtf(1.0f + m.m22 - m.m00 - m.m11) * 2.0f; // s = 4 * qz
+
+        q.w = (m.m10 - m.m01) / s;
+        q.x = (m.m02 + m.m20) / s;
+        q.y = (m.m12 + m.m21) / s;
+        q.z = 0.25f * s;
+    }
+
+    // Normalize to avoid drift from numerical error
+    float len = sqrtf(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
+    if (len > 0.0f)
+    {
+        float invLen = 1.0f / len;
+        q.x *= invLen;
+        q.y *= invLen;
+        q.z *= invLen;
+        q.w *= invLen;
+    }
+
+    return q;
+}
+
 bool eqf(float a, float b)
 {
     return fabsf(a - b) < 1e-5f;
@@ -633,6 +749,24 @@ m4f rotation(quat q)
 m4f rotation(float angle, v3f axis)
 {
     return rotation(quatAngleAxis(angle, axis));
+}
+
+m4f rotation(v3f xAxis, v3f yAxis, v3f zAxis)
+{
+    m4f result = identity();
+    result.m00 = xAxis.x;
+    result.m01 = xAxis.y;
+    result.m02 = xAxis.z;
+
+    result.m10 = yAxis.x;
+    result.m11 = yAxis.y;
+    result.m12 = yAxis.z;
+
+    result.m20 = zAxis.x;
+    result.m21 = zAxis.y;
+    result.m22 = zAxis.z;
+
+    return result;
 }
 
 m4f scale(float scale)

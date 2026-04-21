@@ -14,6 +14,7 @@ struct CameraDesc
     float mSpeed = 20.f;
     float mAngularSpeed = TO_RAD(360.f);
     float mSmoothing = 10.f;
+    float mAngularSmoothing = 50.f;
 };
 
 struct Camera
@@ -25,6 +26,10 @@ struct Camera
     v3f mX = {0, 0, 0};
     v3f mY = {0, 0, 0};
     v3f mZ = {0, 0, 0};
+
+    v3f mTargetX = {0, 0, 0};
+    v3f mTargetY = {0, 0, 0};
+    v3f mTargetZ = {0, 0, 0};
 };
 
 void initCamera(v3f pos, v3f lookAt, CameraDesc desc, Camera* pCamera);

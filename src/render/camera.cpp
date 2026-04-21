@@ -22,6 +22,9 @@ void initCamera(v3f pos, v3f lookAt, CameraDesc desc, Camera* pCamera)
     pCamera->mX = x;
     pCamera->mY = y;
     pCamera->mZ = z;
+    pCamera->mTargetX = x;
+    pCamera->mTargetY = y;
+    pCamera->mTargetZ = z;
 }
 
 void moveCamera(Camera* pCamera, v3f moveDir, float dt)
@@ -31,23 +34,36 @@ void moveCamera(Camera* pCamera, v3f moveDir, float dt)
     moveDir = normalize(moveDir);
     // Update pos
     v3f pos = pCamera->mTargetPos;
-    pos = pos + pCamera->mX * moveDir.x * pCamera->mDesc.mSpeed * dt;
-    pos = pos + pCamera->mZ * moveDir.z * pCamera->mDesc.mSpeed * dt;
+    pos = pos + pCamera->mTargetX * moveDir.x * pCamera->mDesc.mSpeed * dt;
+    pos = pos + pCamera->mTargetZ * moveDir.z * pCamera->mDesc.mSpeed * dt;
     pCamera->mTargetPos = pos;
 }
 
 void rotateCamera(Camera* pCamera, v2f rotateDir, float dt)
 {
-    v3f camDir = pCamera->mZ;
-    camDir = rotate(camDir, rotateDir.x * pCamera->mDesc.mAngularSpeed * dt, pCamera->mY);
-    camDir = rotate(camDir, rotateDir.y * pCamera->mDesc.mAngularSpeed * dt, pCamera->mX);
+    v3f x = pCamera->mTargetX;
+    v3f y = pCamera->mTargetY;
+    v3f z = pCamera->mTargetZ;
 
-    v3f z = camDir;
-    v3f x = normalize(cross({0, 1, 0}, z));
-    v3f y = normalize(cross(z, x));
-    pCamera->mX = x;
-    pCamera->mY = y;
-    pCamera->mZ = z;
+    // Yaw
+    quat yawRot = quatAngleAxis(rotateDir.x * pCamera->mDesc.mAngularSpeed * dt, {0,1,0});
+
+    // Pitch
+    quat pitchRot = quatAngleAxis(rotateDir.y * pCamera->mDesc.mAngularSpeed * dt, x);
+
+    quat rot = quatMul(pitchRot, yawRot);
+
+    x = rotate(x, rot);
+    y = rotate(y, rot);
+    z = rotate(z, rot);
+
+    z = normalize(z);
+    x = normalize(cross(y, z));
+    y = normalize(cross(z, x));
+    
+    pCamera->mTargetX = x;
+    pCamera->mTargetY = y;
+    pCamera->mTargetZ = z;
 }
 
 void updateCamera(Camera *pCamera, float dt)
@@ -55,6 +71,15 @@ void updateCamera(Camera *pCamera, float dt)
     ASSERT(pCamera);
 
     pCamera->mPos = lerp(pCamera->mPos, pCamera->mTargetPos, dt * pCamera->mDesc.mSmoothing);
+
+    quat currentRotation = toQuat(rotation(pCamera->mX, pCamera->mY, pCamera->mZ));
+    quat targetRotation = toQuat(rotation(pCamera->mTargetX, pCamera->mTargetY, pCamera->mTargetZ));
+    quat interp = slerp(currentRotation, targetRotation, dt * pCamera->mDesc.mAngularSmoothing);
+    m4f interpMatrix = rotation(interp);
+
+    pCamera->mX = {interpMatrix.m00, interpMatrix.m01, interpMatrix.m02};
+    pCamera->mY = {interpMatrix.m10, interpMatrix.m11, interpMatrix.m12};
+    pCamera->mZ = {interpMatrix.m20, interpMatrix.m21, interpMatrix.m22};
 }
 
 m4f getView(Camera* pCamera)
