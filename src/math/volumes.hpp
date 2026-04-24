@@ -16,12 +16,14 @@ v3f getCenter(AABB aabb);
 // Frustum
 struct Frustum
 {
-    // Planes (in order): near, far, left, right, bottom, top
+    // Planes (in order): left, right, bottom, top, near, far
     plane planes[6];
 };
 
 bool inFrustum(v3f p, Frustum f);
 bool inFrustum(AABB aabb, Frustum f);
+void frustumCorners(m4f view, m4f proj, v3f* pCorners, float zOffset = 0);
+Frustum frustum(m4f vp);
 
 // Misc
 void sphere(float radius, uint32 stacks, uint32 slices,

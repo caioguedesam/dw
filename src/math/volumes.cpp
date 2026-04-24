@@ -160,3 +160,63 @@ bool inFrustum(AABB aabb, Frustum f)
     }
     return true;
 }
+
+void frustumCorners(m4f view, m4f proj, v3f* pCorners, float zOffset)
+{
+    m4f mVP = matMul(proj, view);
+    m4f mInvVP = inverse(mVP);
+
+    v4f cornersClip[8] =
+    {
+        {-1, -1, 1 - zOffset, 1},
+        { 1, -1, 1 - zOffset, 1},
+        {-1,  1, 1 - zOffset, 1},
+        { 1,  1, 1 - zOffset, 1},
+
+        {-1, -1, 0 + zOffset, 1},
+        { 1, -1, 0 + zOffset, 1},
+        {-1,  1, 0 + zOffset, 1},
+        { 1,  1, 0 + zOffset, 1},
+    };
+
+    for(int32 i = 0; i < 8; i++)
+    {
+        v4f p = matMul(mInvVP, cornersClip[i]);
+        float div = 1.f / p.w;
+
+        pCorners[i].x = p.x * div;
+        pCorners[i].y = p.y * div;
+        pCorners[i].z = p.z * div;
+    }
+}
+
+Frustum frustum(m4f vp)
+{
+    // https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf
+    // Note: matrix is transposed here to account for column-major multiplication ordering
+    // (Mv instead of vM).
+    Frustum f = {};
+
+    v4f r0 = {vp.m00, vp.m01, vp.m02, vp.m03}; 
+    v4f r1 = {vp.m10, vp.m11, vp.m12, vp.m13}; 
+    v4f r2 = {vp.m20, vp.m21, vp.m22, vp.m23}; 
+    v4f r3 = {vp.m30, vp.m31, vp.m32, vp.m33}; 
+
+    // Plane: dot(n, p) + d >= 0
+    
+    f.planes[0] = r3 + r0; // Left
+    f.planes[1] = r3 - r0; // Right
+    f.planes[2] = r3 + r1; // Bottom
+    f.planes[3] = r3 - r1; // Top
+    f.planes[4] = r3 - r2; // Near
+    f.planes[5] = r2;      // Far
+
+    // Normalize
+    for (int i = 0; i < 6; i++)
+    {
+        float len = magn(to3f(f.planes[i]));
+        f.planes[i] = f.planes[i] * (1.f / len);
+    }
+
+    return f;
+}
