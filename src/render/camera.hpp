@@ -23,6 +23,7 @@ struct Camera
 
     v3f mPos = {0, 0, 0};
     v3f mTargetPos = {0, 0, 0};
+    v3f mLookAt = {0, 0, 0};
     v3f mX = {0, 0, 0};
     v3f mY = {0, 0, 0};
     v3f mZ = {0, 0, 0};

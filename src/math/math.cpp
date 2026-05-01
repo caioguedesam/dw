@@ -814,6 +814,17 @@ m4f viewRH(v3f x, v3f y, v3f z, v3f center)
     return result;
 }
 
+m4f lookAtViewRH(v3f eye, v3f target, v3f up)
+{
+    // lookAt is +Z. Camera is right handed, pointing to -Z.
+    v3f dir = -normalize(target - eye);
+    v3f z = dir;
+    v3f x = normalize(cross(up, z));
+    v3f y = normalize(cross(z, x));
+
+    return viewRH(x, y, z, eye);
+}
+
 m4f orthoRH(float l, float r, float t, float b, float n, float f)
 {
     // Reference: GLM orthoRH_ZO

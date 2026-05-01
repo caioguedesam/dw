@@ -13,6 +13,7 @@ void initCamera(v3f pos, v3f lookAt, CameraDesc desc, Camera* pCamera)
     pCamera->mDesc = desc;
     pCamera->mPos = pos;
     pCamera->mTargetPos = pos;
+    pCamera->mLookAt = lookAt;
 
     // lookAt is +Z. Camera is right handed, pointing to -Z.
     v3f dir = -normalize(lookAt - pos);
