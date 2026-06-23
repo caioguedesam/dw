@@ -10,6 +10,8 @@
 #include "vulkan/vulkan_core.h"
 #include "vma/vk_mem_alloc.h"
 
+#define CONCURRENT_FRAMES 2
+
 const char* vkResultToStr(VkResult result);
 
 #define ASSERTVK(EXPR) ASSERTF((EXPR) == VK_SUCCESS, \
@@ -377,7 +379,6 @@ struct RendererDesc
     uint64 mMaxComputePipelines     = 64;
 };
 
-#define CONCURRENT_FRAMES 2
 struct Renderer
 {
     // Pools for reusable render data
@@ -456,7 +457,9 @@ void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount);
 void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount,
         uint32 indexOffset, uint32 vertexOffset);
-void cmdDrawIndexedIndirect(CommandBuffer* pCmd, Buffer* pDrawCmds, Buffer* pDrawCmdCount,
-        uint64 countOffset, uint32 maxDrawCount);
+void cmdDrawIndexedIndirect(CommandBuffer* pCmd, 
+        Buffer* pDrawCmds, uint64 bufferOffset,
+        Buffer* pDrawCmdCount, uint64 countOffset, 
+        uint32 maxDrawCount);
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z);
 void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc);

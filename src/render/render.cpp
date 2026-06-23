@@ -1446,13 +1446,15 @@ void cmdDrawIndexed(CommandBuffer* pCmd, uint32 indexCount, uint32 instanceCount
             0);
 }
 
-void cmdDrawIndexedIndirect(CommandBuffer* pCmd, Buffer* pDrawCmds, Buffer* pDrawCmdCount,
-        uint64 countOffset, uint32 maxDrawCount)
+void cmdDrawIndexedIndirect(CommandBuffer* pCmd, 
+        Buffer* pDrawCmds, uint64 bufferOffset,
+        Buffer* pDrawCmdCount, uint64 countOffset, 
+        uint32 maxDrawCount)
 {
     ASSERT(pCmd);
     vkCmdDrawIndexedIndirectCount(pCmd->mVkCmd,
             pDrawCmds->mVkBuffer,
-            0,
+            bufferOffset,
             pDrawCmdCount->mVkBuffer,
             countOffset,
             maxDrawCount,
