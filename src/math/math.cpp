@@ -825,9 +825,10 @@ m4f lookAtViewRH(v3f eye, v3f target, v3f up)
     return viewRH(x, y, z, eye);
 }
 
-m4f orthoRH(float l, float r, float t, float b, float n, float f)
+m4f orthoRH(float l, float r, float b, float t, float n, float f)
 {
     // Reference: GLM orthoRH_ZO
+    // Using reverse Z (near = 1, far = 0)
     m4f result = {};
     result.m00 = 2.f / (r - l);
     result.m11 = 2.f / (t - b);
@@ -835,11 +836,11 @@ m4f orthoRH(float l, float r, float t, float b, float n, float f)
     // TODO_DW: MULTIPLATFORM Vulkan
     result.m11 = -result.m11;
 #endif
-    result.m22 = -1.f / (f - n);
+    result.m22 = 1.f / (f - n);
 
     result.m03 = - (r + l) / (r - l);
     result.m13 = - (t + b) / (t - b);
-    result.m23 = - n / (f - n);
+    result.m23 = f / (f - n);
     result.m33 = 1;
 
     return result;

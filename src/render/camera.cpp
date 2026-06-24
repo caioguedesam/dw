@@ -81,6 +81,8 @@ void updateCamera(Camera *pCamera, float dt)
     pCamera->mX = {interpMatrix.m00, interpMatrix.m01, interpMatrix.m02};
     pCamera->mY = {interpMatrix.m10, interpMatrix.m11, interpMatrix.m12};
     pCamera->mZ = {interpMatrix.m20, interpMatrix.m21, interpMatrix.m22};
+
+    pCamera->mLookAt = pCamera->mPos - pCamera->mZ;
 }
 
 m4f getView(Camera* pCamera)

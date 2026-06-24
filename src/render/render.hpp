@@ -3,6 +3,7 @@
 #include "../core/debug.hpp"
 #include "../core/app.hpp"
 #include "../core/memory.hpp"
+#include "../core/string.hpp"
 #include "texture.hpp"
 #include "shader.hpp"
 #include "descriptor.hpp"
@@ -403,6 +404,8 @@ struct Renderer
     VkInstance mVkInstance = VK_NULL_HANDLE;
 #if DW_DEBUG
     VkDebugUtilsMessengerEXT mVkDebugMessenger = VK_NULL_HANDLE;
+    PFN_vkCmdBeginDebugUtilsLabelEXT  pfnVkScopeBegin = NULL;
+    PFN_vkCmdEndDebugUtilsLabelEXT    pfnVkScopeEnd   = NULL;
 #endif
     VkSurfaceKHR mVkSurface = VK_NULL_HANDLE;
     VkPhysicalDevice mVkPhysicalDevice = VK_NULL_HANDLE;
@@ -463,3 +466,8 @@ void cmdDrawIndexedIndirect(CommandBuffer* pCmd,
         uint32 maxDrawCount);
 void cmdDispatch(CommandBuffer* pCmd, uint32 x, uint32 y, uint32 z);
 void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSrc);
+
+// --------------------------------------
+// Debug Interface
+void cmdScopeBegin(Renderer* pRenderer, CommandBuffer* pCmd, String scopeName);
+void cmdScopeEnd(Renderer* pRenderer, CommandBuffer* pCmd);

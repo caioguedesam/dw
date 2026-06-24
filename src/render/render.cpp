@@ -690,6 +690,14 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         VkResult ret = fn(vkInstance, &messengerInfo, NULL, &vkMessenger);
         ASSERTVK(ret);
     }
+
+    // Loading scope label functions
+    PFN_vkCmdBeginDebugUtilsLabelEXT pfnVkCmdBeginDebugUtilsLabelEXT = NULL;
+    PFN_vkCmdEndDebugUtilsLabelEXT   pfnVkCmdEndDebugUtilsLabelEXT = NULL;
+    {
+        pfnVkCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(vkInstance, "vkCmdBeginDebugUtilsLabelEXT");
+        pfnVkCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(vkInstance, "vkCmdEndDebugUtilsLabelEXT");
+    }
 #endif
 
     // Initializing surface
@@ -937,6 +945,8 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     pRenderer->mVkInstance = vkInstance;
 #if DW_DEBUG
     pRenderer->mVkDebugMessenger = vkMessenger;
+    pRenderer->pfnVkScopeBegin = pfnVkCmdBeginDebugUtilsLabelEXT;
+    pRenderer->pfnVkScopeEnd = pfnVkCmdEndDebugUtilsLabelEXT;
 #endif
     pRenderer->mVkSurface = vkSurface;
     pRenderer->mVkPhysicalDevice = vkPhysicalDevice;
@@ -1509,4 +1519,24 @@ void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSr
             VK_FILTER_NEAREST);
 
     cmdSwapChainBarrier(pCmd, pSwapChain, IMAGE_LAYOUT_PRESENT_SRC);
+}
+
+void cmdScopeBegin(Renderer* pRenderer, CommandBuffer* pCmd, String scopeName)
+{
+#if DW_DEBUG
+    ASSERT(pRenderer && pCmd);
+    VkDebugUtilsLabelEXT vkLabel = {};
+    vkLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    vkLabel.pLabelName = cstr(scopeName);
+
+    pRenderer->pfnVkScopeBegin(pCmd->mVkCmd, &vkLabel);
+#endif
+}
+
+void cmdScopeEnd(Renderer* pRenderer, CommandBuffer* pCmd)
+{
+#if DW_DEBUG
+    ASSERT(pRenderer && pCmd);
+    pRenderer->pfnVkScopeEnd(pCmd->mVkCmd);
+#endif
 }

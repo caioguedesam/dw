@@ -161,7 +161,7 @@ m4f scale(v3f scale);
 
 m4f viewRH(v3f x, v3f y, v3f z, v3f center);
 m4f lookAtViewRH(v3f eye, v3f target, v3f up);
-m4f orthoRH(float l, float r, float t, float b, float n, float f);
+m4f orthoRH(float l, float r, float b, float t, float n, float f);
 m4f perspectiveRH(float fovY, float aspect, float zNear, float zFar);
 
 v3f clipToWorld(v3f p, m4f invView, m4f invProj);
