@@ -819,6 +819,10 @@ m4f lookAtViewRH(v3f eye, v3f target, v3f up)
     // lookAt is +Z. Camera is right handed, pointing to -Z.
     v3f dir = -normalize(target - eye);
     v3f z = dir;
+    if(COMPAREF(fabsf(z.y), 1.f))
+    {
+        up = {0,0,1};
+    }
     v3f x = normalize(cross(up, z));
     v3f y = normalize(cross(z, x));
 

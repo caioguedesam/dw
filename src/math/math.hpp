@@ -10,6 +10,8 @@
 
 #define SGN(X) (((X) > 0) ? 1 : (((X) < 0) ? -1 : 0))
 
+#define COMPAREF(A, B) (fabsf((A) - (B)) < (EPSILON_FLOAT))
+
 // Vectors
 #define DECLARE_VECTOR2(NAME, TYPE) \
 struct NAME                         \
