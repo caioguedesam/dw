@@ -280,9 +280,11 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget)
     ASSERT(pRenderer && ppTarget);
     ASSERT(*ppTarget);
 
-    removeTexture(pRenderer, &(*ppTarget)->pTexture); 
-    ASSERT((*ppTarget)->pTexture == NULL);
-
+    if((*ppTarget)->pTexture)
+    {
+        removeTexture(pRenderer, &(*ppTarget)->pTexture); 
+        ASSERT((*ppTarget)->pTexture == NULL);
+    }
     **ppTarget = {};
 
     poolFree(&pRenderer->poolRenderTargets, *ppTarget);
@@ -774,8 +776,22 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
             if(!features.samplerAnisotropy) continue;
             if(!features.fillModeNonSolid) continue;
             if(!features.wideLines) continue;
+            if(!features.shaderStorageImageReadWithoutFormat) continue;
+            if(!features.shaderStorageImageWriteWithoutFormat) continue;
 
+            VkPhysicalDeviceUniformBufferStandardLayoutFeatures uboLayoutFeature = {};
+            uboLayoutFeature.sType =
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES;
+            
+            VkPhysicalDeviceFeatures2 features2 = {};
+            features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+            features2.pNext = &uboLayoutFeature;
+            
+            vkGetPhysicalDeviceFeatures2(device, &features2);
+            if(!uboLayoutFeature.uniformBufferStandardLayout) continue;
+            
             selectedDevice = i;
+
             break;
         }
         ASSERT(selectedDevice != -1);
@@ -837,6 +853,8 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         features12.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
         features12.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
         features12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+        features12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+        features12.uniformBufferStandardLayout = VK_TRUE;
 
         VkPhysicalDeviceVulkan11Features features11 = {};
         features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
@@ -847,6 +865,8 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         features.samplerAnisotropy = VK_TRUE;
         features.fillModeNonSolid = VK_TRUE;
         features.wideLines = VK_TRUE;
+        features.shaderStorageImageReadWithoutFormat = VK_TRUE;
+        features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
         VkPhysicalDeviceDynamicRenderingFeatures dynamicFeature = {};
         dynamicFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;

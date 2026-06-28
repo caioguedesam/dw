@@ -6,11 +6,12 @@
 #include "../core/debug.hpp"
 #include "../render/texture.hpp"
 #include "../render/render.hpp"
+#include "../render/resource_manager.hpp"
 
-void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path, 
+void loadTexture(AssetManager* pAssetManager, ResourceManager<Texture>* pResMan, String path, 
         uint32 format, bool flipVertical, Texture** ppOut)
 {
-    ASSERT(pAssetManager && pRenderer && ppOut);
+    ASSERT(pAssetManager && pResMan && ppOut);
     ASSERT(*ppOut == NULL);
     uint64 fileSize = 0;
     byte* fileData = readFile(&pAssetManager->mArenaTemp, path, &fileSize);
@@ -36,8 +37,9 @@ void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer, String path,
         | TEXTURE_USAGE_TRANSFER_SRC
         | TEXTURE_USAGE_TRANSFER_DST;
 
-    addTexture(pRenderer, desc, ppOut);
+    initTexture(pResMan, desc, ppOut);
 
+    Renderer* pRenderer = pResMan->pRenderer;
     CommandBuffer* pCmd = getCmd(pRenderer, true);
     beginCmd(pCmd);
     // Transition texture to TRANSFER_DST

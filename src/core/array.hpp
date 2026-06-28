@@ -40,6 +40,11 @@ struct Array
     {
         mCount = 0;
     }
+
+    T& top()
+    {
+        return mData[mCount - 1];
+    }
 };
 
 template <typename T>

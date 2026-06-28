@@ -6,6 +6,8 @@
 struct Shader;
 struct Texture;
 struct Renderer;
+template<typename T>
+struct ResourceManager;
 
 struct AssetManagerDesc
 {
@@ -30,5 +32,5 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
         uint32 shaderType, String* pDefines, uint32 definesCount,
         Shader** ppOut);
 
-void loadTexture(AssetManager* pAssetManager, Renderer* pRenderer,
+void loadTexture(AssetManager* pAssetManager, ResourceManager<Texture>* pResMan,
         String path, uint32 format, bool flipVertical, Texture** ppOut);

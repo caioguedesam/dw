@@ -30,6 +30,9 @@ typedef unsigned char byte;
 #define EPSILON_FLOAT (FLT_EPSILON)
 #define EPSILON_DOUBLE (DBL_EPSILON)
 
+#define HND uint32
+#define HND_INVALID MAX_UINT32
+
 #undef KB
 #undef MB
 #undef GB

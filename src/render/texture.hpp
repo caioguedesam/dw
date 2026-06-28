@@ -80,6 +80,7 @@ struct TextureDesc
 
 struct Texture
 {
+    HND mHandle = HND_INVALID;
     TextureDesc mDesc = {};
 
     VkImage         mVkImage        = VK_NULL_HANDLE;

@@ -129,6 +129,7 @@ void addDescriptorSet(Renderer* pRenderer, DescriptorSetDesc desc, DescriptorSet
                     for(uint32 t = 0; t < res.mCount; t++)
                     {
                         Texture* pTexture = pTextures[t];
+                        ASSERT(pTexture);   // This can't be null. Should resort to a fallback.
                         vkImageInfos[cursor] = {};
                         vkImageInfos[cursor].imageView = pTexture->mVkImageView;
                         vkImageInfos[cursor].imageLayout = (VkImageLayout)pTexture->mDesc.mBaseLayout;
