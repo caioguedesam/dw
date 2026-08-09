@@ -42,6 +42,6 @@ void initDepthTarget(ResourceManager<Texture>* pResMan, RenderTargetDesc desc, R
 void destroyRenderTarget(ResourceManager<Texture>* pResMan, RenderTarget** ppTarget);
 
 void getSampledTextureResources(ResourceManager<Texture>* pResMan, uint64 count, Texture* pFallback, Texture** pOut);
-void getStorageTextureResources(ResourceManager<Texture>* pResMan, uint64 count, ImageFormat format, Texture* pFallback, Texture** pOut);
+void getStorageTextureResources(ResourceManager<Texture>* pResMan, uint64 count, Texture* pFallback, Texture** pOut);
 
 

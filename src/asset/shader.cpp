@@ -68,6 +68,12 @@ void towcstr(Arena* pArena, String in, wchar_t** out)
     *out = wName;
 }
 
+void addToArgBuffer(LPCWSTR* argBuffer, LPCWSTR arg, size_t* argCount)
+{
+    argBuffer[*argCount] = arg;
+    (*argCount)++;
+}
+
 #define SHADER_USE_DXC 1
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, 
         String path, 
@@ -103,33 +109,36 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
     wchar_t* wAssetDir;
     towcstr(&pAssetManager->mArenaTemp, assetDir, &wAssetDir);
 
-    LPCWSTR args[] =
-    {
-        L"-spirv",
-        L"-fspv-target-env=vulkan1.3",
-        L"-E", entry,     // Entry point
-        L"-T", target,   // Compile target
-        L"-I", wAssetDir,
-        L"-Zpc",        // Ensure matrices are column major
+    // Construct argument buffer with parameters and defines
+    size_t argCount = 0;
+    LPCWSTR args[256];
+    addToArgBuffer(args, L"-spirv", &argCount);
+    addToArgBuffer(args, L"-fspv-target-env=vulkan1.3", &argCount);
+    addToArgBuffer(args, L"-E", &argCount);
+    addToArgBuffer(args, entry, &argCount);
+    addToArgBuffer(args, L"-T", &argCount);
+    addToArgBuffer(args, target, &argCount);
+    addToArgBuffer(args, L"-I", &argCount);
+    addToArgBuffer(args, wAssetDir, &argCount);
+    addToArgBuffer(args, L"-Zpc", &argCount);
+    addToArgBuffer(args, L"-fvk-use-scalar-layout", &argCount);
 #if DW_DEBUG
-        L"-Zi", L"-Od",
+    addToArgBuffer(args, L"-Zi", &argCount);
+    addToArgBuffer(args, L"-Od", &argCount);
 #else
-        L"-O3",
+    addToArgBuffer(args, L"-O3", &argCount);
 #endif
-    };
 
-    DxcDefine defines[definesCount];
     for(uint32 i = 0; i < definesCount; i++)
     {
+        addToArgBuffer(args, L"-D", &argCount);
         wchar_t* wName;
         towcstr(&pAssetManager->mArenaTemp, pDefines[i], &wName);
-
-        defines[i].Name = wName;
-        defines[i].Value = L"1";
+        addToArgBuffer(args, wName, &argCount);
     }
 
     IDxcResult* pResult = NULL;
-    HRESULT hr = gShaderCompiler.pDxcCompiler->Compile(&source, args, (uint32)ARR_LEN(args), gShaderCompiler.pDxcIncludeHandler, IID_PPV_ARGS(&pResult));
+    HRESULT hr = gShaderCompiler.pDxcCompiler->Compile(&source, args, (uint32)argCount, gShaderCompiler.pDxcIncludeHandler, IID_PPV_ARGS(&pResult));
     if(FAILED(hr))
     {
         ASSERT("Failed to compile shader!");
