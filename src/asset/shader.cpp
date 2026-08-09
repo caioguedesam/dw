@@ -5,7 +5,18 @@
 #include "../core/debug.hpp"
 
 #include "shaderc/shaderc.h"
+#include <unknwn.h>
+#include "../third_party/dxc/dxcapi.h"
 #include "../core/memory.hpp"
+
+struct ShaderCompiler
+{
+    IDxcUtils* pDxcUtils = NULL;
+    IDxcCompiler3* pDxcCompiler = NULL;
+    IDxcIncludeHandler* pDxcIncludeHandler = NULL;
+};
+
+ShaderCompiler gShaderCompiler = {};
 
 shaderc_include_result* resolveInclude(void* pUserData, const char* requested, int32 requestType,
         const char* requesting, size_t includeDepth)
@@ -33,6 +44,31 @@ void releaseInclude(void* pUserData, shaderc_include_result* pResult)
 {
 }
 
+void initShaderCompiler()
+{
+    DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&gShaderCompiler.pDxcUtils));
+    DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&gShaderCompiler.pDxcCompiler));
+    gShaderCompiler.pDxcUtils->CreateDefaultIncludeHandler(&gShaderCompiler.pDxcIncludeHandler);
+}
+
+void destroyShaderCompiler()
+{
+    gShaderCompiler.pDxcUtils->Release();
+    gShaderCompiler.pDxcCompiler->Release();
+    gShaderCompiler.pDxcIncludeHandler->Release();
+
+    gShaderCompiler = {};
+}
+
+void towcstr(Arena* pArena, String in, wchar_t** out)
+{
+    wchar_t* wName = (wchar_t*)arenaPush(pArena, (in.mLen + 1) * sizeof(wchar_t));
+    MultiByteToWideChar(CP_UTF8, 0, cstr(in), -1, wName, in.mLen);
+    wName[in.mLen] = 0;
+    *out = wName;
+}
+
+#define SHADER_USE_DXC 1
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, 
         String path, 
         uint32 shaderType, String* pDefines, uint32 definesCount, 
@@ -45,6 +81,83 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
     // Shader bytecode doesn't need to persist, using temp arena.
     String code = readFileStr(&pAssetManager->mArenaTemp, path);
 
+#if SHADER_USE_DXC
+
+    DxcBuffer source = {};
+    source.Ptr = code.mData;
+    source.Size = code.mLen;
+    source.Encoding = DXC_CP_UTF8;
+
+    LPCWSTR target;
+    LPCWSTR entry;
+    ShaderType type = (ShaderType)shaderType;
+    switch (type)
+    {
+        case SHADER_TYPE_VERT: target = L"vs_6_6"; entry = L"VSMain"; break;
+        case SHADER_TYPE_FRAG: target = L"ps_6_6"; entry = L"PSMain"; break;
+        case SHADER_TYPE_COMP: target = L"cs_6_6"; entry = L"CSMain"; break;
+        default: ASSERTF(0, "Unsupported shader type for shader %s", cstr(path));
+    }
+
+    String assetDir = getFileDir(path, false);
+    wchar_t* wAssetDir;
+    towcstr(&pAssetManager->mArenaTemp, assetDir, &wAssetDir);
+
+    LPCWSTR args[] =
+    {
+        L"-spirv",
+        L"-fspv-target-env=vulkan1.3",
+        L"-E", entry,     // Entry point
+        L"-T", target,   // Compile target
+        L"-I", wAssetDir,
+        L"-Zpc",        // Ensure matrices are column major
+#if DW_DEBUG
+        L"-Zi", L"-Od",
+#else
+        L"-O3",
+#endif
+    };
+
+    DxcDefine defines[definesCount];
+    for(uint32 i = 0; i < definesCount; i++)
+    {
+        wchar_t* wName;
+        towcstr(&pAssetManager->mArenaTemp, pDefines[i], &wName);
+
+        defines[i].Name = wName;
+        defines[i].Value = L"1";
+    }
+
+    IDxcResult* pResult = NULL;
+    HRESULT hr = gShaderCompiler.pDxcCompiler->Compile(&source, args, (uint32)ARR_LEN(args), gShaderCompiler.pDxcIncludeHandler, IID_PPV_ARGS(&pResult));
+    if(FAILED(hr))
+    {
+        ASSERT("Failed to compile shader!");
+    }
+
+    IDxcBlobUtf8* pErrors = NULL;
+    pResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&pErrors), NULL);
+    if(pErrors && pErrors->GetStringLength())
+    {
+        uint64 errorStrSize = pErrors->GetStringLength();
+        const char* errorStr = pErrors->GetStringPointer();
+        LOGLF("SHADER COMPILE", "%s", errorStr);
+        ASSERT(0);
+    }
+
+    IDxcBlob* pSpirv = NULL;
+    pResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pSpirv), NULL);
+
+    uint64 bytecodeLen = pSpirv->GetBufferSize();
+    byte* bytecode = (byte*)pSpirv->GetBufferPointer();
+
+    ShaderDesc desc = {};
+    desc.mType = type;
+    desc.mBytecodeSize = bytecodeLen;
+    desc.pBytecode = (uint32*)bytecode;
+    addShader(pRenderer, desc, ppOut);
+
+#else
     ShaderType type = (ShaderType)shaderType;
     shaderc_shader_kind kind;
     if(type == SHADER_TYPE_VERT)
@@ -72,6 +185,7 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
 #else
     shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance);
 #endif
+    shaderc_compile_options_set_source_language(options, shaderc_source_language_hlsl);
     shaderc_compile_options_set_include_callbacks(
             options, 
             resolveInclude, 
@@ -137,6 +251,7 @@ void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
     shaderc_result_release(compiled);
     shaderc_compile_options_release(options);
     shaderc_compiler_release(compiler);
+#endif
 
     arenaClear(&pAssetManager->mArenaTemp);
 }

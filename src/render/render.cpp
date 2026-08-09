@@ -359,12 +359,12 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     VkPipelineShaderStageCreateInfo shaderInfos[2];
     shaderInfos[0] = {};
     shaderInfos[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderInfos[0].pName = "main";
+    shaderInfos[0].pName = "VSMain";
     shaderInfos[0].module = desc.pVS->mVkShader;
     shaderInfos[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     shaderInfos[1] = {};
     shaderInfos[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderInfos[1].pName = "main";
+    shaderInfos[1].pName = "PSMain";
     shaderInfos[1].module = desc.pFS->mVkShader;
     shaderInfos[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 
@@ -536,7 +536,7 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
     // Shader stages
     VkPipelineShaderStageCreateInfo shaderInfo = {};
     shaderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shaderInfo.pName = "main";
+    shaderInfo.pName = "CSMain";
     shaderInfo.module = desc.pCS->mVkShader;
     shaderInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 
@@ -873,9 +873,14 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         dynamicFeature.dynamicRendering = VK_TRUE;
         dynamicFeature.pNext = &features11;
 
+        VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT demoteFeature = {};
+        demoteFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT;
+        demoteFeature.shaderDemoteToHelperInvocation = VK_TRUE;
+        demoteFeature.pNext = &dynamicFeature;
+
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceInfo.pNext = &dynamicFeature;
+        deviceInfo.pNext = &demoteFeature;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
         deviceInfo.pEnabledFeatures = &features;

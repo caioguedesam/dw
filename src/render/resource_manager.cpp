@@ -79,7 +79,7 @@ void getSampledTextureResources(ResourceManager<Texture>* pResMan, uint64 count,
     }
 }
 
-void getStorageTextureResources(ResourceManager<Texture>* pResMan, uint64 count, Texture* pFallback, Texture** pOut)
+void getStorageTextureResources(ResourceManager<Texture>* pResMan, uint64 count, ImageFormat format, Texture* pFallback, Texture** pOut)
 {
     ASSERT(pResMan && pOut && pFallback);
     ASSERT(pFallback->mDesc.mUsage & TEXTURE_USAGE_STORAGE);
@@ -92,7 +92,7 @@ void getStorageTextureResources(ResourceManager<Texture>* pResMan, uint64 count,
     for(uint64 i = 0; i < pResMan->pResources.mCount; i++)
     {
         Texture* pTexture = pResMan->pResources[i];
-        if(pTexture && pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
+        if(pTexture && pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE && pTexture->mDesc.mFormat == format)
         {
             pOut[i] = pTexture;
         }

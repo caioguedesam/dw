@@ -88,7 +88,7 @@ void logf(const char* label, const char* fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
-    char buf[2048];
+    char buf[8192];
     vsprintf(buf, fmt, args);
     printf("[%s]: %s\n", label, buf);
     va_end(args);

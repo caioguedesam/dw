@@ -99,7 +99,11 @@ if not exist "./build/%BUILD%" (
 
 rem Building dependencies (always in release mode)
 rem TODO_DW: Just shaderc adds 80MB to dependency lib size. Maybe this should be changed.
-set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib %VULKAN_SDK_PATH%/Lib/shaderc_combined.lib
+set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib %VULKAN_SDK_PATH%/Lib/shaderc_combined.lib 
+for /R lib %%F in (*.lib) do (
+    set DEPS=!DEPS! "%%F"
+)
+
 if %BUILD_DEPENDENCIES%==1 (
     echo Building %DEPFILE%.lib...
     %CC% %CC_FLAGS% -Ofast -Wno-nullability-completeness -c %DEFINES% %DEFINES_P% ./src/dependencies.cpp -o %DEPFILE:/=\%.obj
@@ -114,6 +118,11 @@ rem %CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% ./src/main.cpp %L_FLAGS% 
 %CC% %CC_FLAGS% %CC_FLAGS_O% %DEFINES% %DEFINES_P% -c ./src/dw.cpp -o %OUTFILE%.obj
 lib /OUT:%OUTFILE:/=\%.lib %OUTFILE:/=\%.obj %CC_DEPS% >nul
 del "%OUTFILE:/=\%.obj"
+
+rem Move dlls to build folder
+for /R lib %%F in (*.dll) do (
+    copy /Y "%%F" "./build/%BUILD%" >nul
+)
 
 rem Get end time:
 for /F "tokens=1-4 delims=:.," %%a in ("%time%") do (

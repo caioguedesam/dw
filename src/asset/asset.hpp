@@ -27,6 +27,8 @@ struct AssetManager
 void initAssetManager(AssetManagerDesc desc, AssetManager* pAssetManager);
 void destroyAssetManager(AssetManager* pAssetManager);
 
+void initShaderCompiler();
+void destroyShaderCompiler();
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
         String path, 
         uint32 shaderType, String* pDefines, uint32 definesCount,
