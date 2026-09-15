@@ -1,62 +1,28 @@
 #include "asset.hpp"
 #include "../render/shader.hpp"
 #include "../render/render.hpp"
-#include "../core/file.hpp"
 #include "../core/debug.hpp"
-
-#include "shaderc/shaderc.h"
-#include <unknwn.h>
-#include "../third_party/dxc/dxcapi.h"
+#include "../third_party/slang/slang.h"
 #include "../core/memory.hpp"
 
 struct ShaderCompiler
 {
-    IDxcUtils* pDxcUtils = NULL;
-    IDxcCompiler3* pDxcCompiler = NULL;
-    IDxcIncludeHandler* pDxcIncludeHandler = NULL;
+    slang::IGlobalSession* pGlobalSession = NULL;
 };
 
 ShaderCompiler gShaderCompiler = {};
 
-shaderc_include_result* resolveInclude(void* pUserData, const char* requested, int32 requestType,
-        const char* requesting, size_t includeDepth)
-{
-    ASSERT(requestType == shaderc_include_type_relative);
-    Arena* pArena = (Arena*)pUserData;
-
-    String assetDir = getFileDir(str(requesting), true);
-    String assetName = join(pArena, assetDir, str(requested));
-    String assetStr = readFileStr(pArena, assetName);
-
-    shaderc_include_result result = {};
-    result.source_name = cstr(assetName);
-    result.source_name_length = assetName.mLen;
-    result.content = cstr(assetStr);
-    result.content_length = assetStr.mLen;
-
-    shaderc_include_result* include = (shaderc_include_result*)arenaPush(pArena, sizeof(shaderc_include_result));
-    memcpy(include, &result, sizeof(shaderc_include_result));
-
-    return include;
-}
-
-void releaseInclude(void* pUserData, shaderc_include_result* pResult)
-{
-}
-
 void initShaderCompiler()
 {
-    DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&gShaderCompiler.pDxcUtils));
-    DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&gShaderCompiler.pDxcCompiler));
-    gShaderCompiler.pDxcUtils->CreateDefaultIncludeHandler(&gShaderCompiler.pDxcIncludeHandler);
+    SlangGlobalSessionDesc desc = {};
+    desc.minLanguageVersion = SLANG_LANGUAGE_VERSION_2026;
+    SlangResult result = slang_createGlobalSession2(&desc, &gShaderCompiler.pGlobalSession);
+    ASSERT(!SLANG_FAILED(result));
 }
 
 void destroyShaderCompiler()
 {
-    gShaderCompiler.pDxcUtils->Release();
-    gShaderCompiler.pDxcCompiler->Release();
-    gShaderCompiler.pDxcIncludeHandler->Release();
-
+    slang_shutdown();
     gShaderCompiler = {};
 }
 
@@ -74,192 +40,145 @@ void addToArgBuffer(LPCWSTR* argBuffer, LPCWSTR arg, size_t* argCount)
     (*argCount)++;
 }
 
-#define SHADER_USE_DXC 1
+void pushMacro(Array<slang::PreprocessorMacroDesc>* pArr, String macro)
+{
+    pArr->push({cstr(macro), "1"});
+}
+
+#define SHADER_SPIRV_PRINT_OUTPUT 0
+
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer, 
-        String path, 
-        uint32 shaderType, String* pDefines, uint32 definesCount, 
+        String fileName, uint32 shaderType, 
+        String* pDefines, uint32 definesCount, 
         Shader** ppOut)
 {
     ASSERT(pAssetManager && pRenderer && ppOut);
     ASSERT(*ppOut == NULL);
-    ASSERT(pathExists(path));
 
-    // Shader bytecode doesn't need to persist, using temp arena.
-    String code = readFileStr(&pAssetManager->mArenaTemp, path);
-
-#if SHADER_USE_DXC
-
-    DxcBuffer source = {};
-    source.Ptr = code.mData;
-    source.Size = code.mLen;
-    source.Encoding = DXC_CP_UTF8;
-
-    LPCWSTR target;
-    LPCWSTR entry;
     ShaderType type = (ShaderType)shaderType;
-    switch (type)
-    {
-        case SHADER_TYPE_VERT: target = L"vs_6_6"; entry = L"VSMain"; break;
-        case SHADER_TYPE_FRAG: target = L"ps_6_6"; entry = L"PSMain"; break;
-        case SHADER_TYPE_COMP: target = L"cs_6_6"; entry = L"CSMain"; break;
-        default: ASSERTF(0, "Unsupported shader type for shader %s", cstr(path));
-    }
 
-    String assetDir = getFileDir(path, false);
-    wchar_t* wAssetDir;
-    towcstr(&pAssetManager->mArenaTemp, assetDir, &wAssetDir);
+    slang::SessionDesc sessionDesc = {};
+    slang::TargetDesc targetDesc = {};
 
-    // Construct argument buffer with parameters and defines
-    size_t argCount = 0;
-    LPCWSTR args[256];
-    addToArgBuffer(args, L"-spirv", &argCount);
-    addToArgBuffer(args, L"-fspv-target-env=vulkan1.3", &argCount);
-    addToArgBuffer(args, L"-E", &argCount);
-    addToArgBuffer(args, entry, &argCount);
-    addToArgBuffer(args, L"-T", &argCount);
-    addToArgBuffer(args, target, &argCount);
-    addToArgBuffer(args, L"-I", &argCount);
-    addToArgBuffer(args, wAssetDir, &argCount);
-    addToArgBuffer(args, L"-Zpc", &argCount);
-    addToArgBuffer(args, L"-fvk-use-scalar-layout", &argCount);
-#if DW_DEBUG
-    addToArgBuffer(args, L"-Zi", &argCount);
-    addToArgBuffer(args, L"-Od", &argCount);
+#if SHADER_SPIRV_PRINT_OUTPUT
+    targetDesc.format = SLANG_SPIRV_ASM;
 #else
-    addToArgBuffer(args, L"-O3", &argCount);
+    targetDesc.format = SLANG_SPIRV;
 #endif
+    targetDesc.profile = gShaderCompiler.pGlobalSession->findProfile("sm_6_6");
+    sessionDesc.targets = &targetDesc;
+    sessionDesc.targetCount = 1;
+    const char* searchPaths[] = { "../../res/shaders/" };
+    sessionDesc.searchPaths = searchPaths;
+    sessionDesc.searchPathCount = 1;
+    sessionDesc.defaultMatrixLayoutMode = SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
 
+    // Macros
+    Array<slang::PreprocessorMacroDesc> macros = array<slang::PreprocessorMacroDesc>(&pAssetManager->mArenaTemp, 128);
     for(uint32 i = 0; i < definesCount; i++)
     {
-        addToArgBuffer(args, L"-D", &argCount);
-        wchar_t* wName;
-        towcstr(&pAssetManager->mArenaTemp, pDefines[i], &wName);
-        addToArgBuffer(args, wName, &argCount);
+        pushMacro(&macros, pDefines[i]);
     }
+    sessionDesc.preprocessorMacroCount = macros.mCount;
+    sessionDesc.preprocessorMacros = macros.mData;
 
-    IDxcResult* pResult = NULL;
-    HRESULT hr = gShaderCompiler.pDxcCompiler->Compile(&source, args, (uint32)argCount, gShaderCompiler.pDxcIncludeHandler, IID_PPV_ARGS(&pResult));
-    if(FAILED(hr))
+    // Compile options
+    Array<slang::CompilerOptionEntry> options = array<slang::CompilerOptionEntry>(&pAssetManager->mArenaTemp, 128);
+    slang::CompilerOptionEntry entry = {};
+    entry.name = slang::CompilerOptionName::VulkanUseEntryPointName;
+    entry.value.intValue0 = 1;
+    options.push(entry);
+    entry.name = slang::CompilerOptionName::Capability;
+    entry.value.kind = slang::CompilerOptionValueKind::String;
+    entry.value.stringValue0 = "spvDescriptorHeapEXT";
+    options.push(entry);
+    entry.name = slang::CompilerOptionName::SPIRVUnifiedDescriptorHeapStride;
+    entry.value.intValue0 = 1;
+    options.push(entry);
+    entry.name = slang::CompilerOptionName::ForceCLayout;
+    entry.value.intValue0 = 1;
+    options.push(entry);
+#if DW_DEBUG
+    entry.name = slang::CompilerOptionName::DebugInformation;
+    entry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_MAXIMAL;
+    options.push(entry);
+    entry.name = slang::CompilerOptionName::Optimization;
+    entry.value.intValue0 = SLANG_OPTIMIZATION_LEVEL_NONE;
+    options.push(entry);
+#else
+    entry.name = slang::CompilerOptionName::DebugInformation;
+    entry.value.intValue0 = SLANG_DEBUG_INFO_LEVEL_NONE;
+    options.push(entry);
+    entry.name = slang::CompilerOptionName::Optimization;
+    entry.value.intValue0 = SLANG_OPTIMIZATION_LEVEL_MAXIMAL;
+    options.push(entry);
+#endif
+    sessionDesc.compilerOptionEntryCount = options.mCount;
+    sessionDesc.compilerOptionEntries = options.mData;
+
+    slang::ISession* pSession = NULL;
+    SlangResult result = gShaderCompiler.pGlobalSession->createSession(sessionDesc, &pSession);
+    ASSERT(!SLANG_FAILED(result));
+
+    slang::IBlob* pDiag = NULL;
+    slang::IModule* pModule = pSession->loadModule(cstr(fileName), &pDiag);
+    if(pDiag)
     {
-        ASSERT("Failed to compile shader!");
+        LOGLF("SHADER COMPILE", "%s", pDiag->getBufferPointer());
     }
-
-    IDxcBlobUtf8* pErrors = NULL;
-    pResult->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&pErrors), NULL);
-    if(pErrors && pErrors->GetStringLength())
+    ASSERT(pModule);
+    slang::IEntryPoint* pEntry = NULL;
+    switch(type)
     {
-        uint64 errorStrSize = pErrors->GetStringLength();
-        const char* errorStr = pErrors->GetStringPointer();
-        LOGLF("SHADER COMPILE", "%s", errorStr);
-        ASSERT(0);
+        case SHADER_TYPE_VERT: pModule->findEntryPointByName("VSMain", &pEntry); break;
+        case SHADER_TYPE_FRAG: pModule->findEntryPointByName("PSMain", &pEntry); break;
+        case SHADER_TYPE_COMP: pModule->findEntryPointByName("CSMain", &pEntry); break;
+        default: ASSERTF(0, "Unsupported shader type for shader %s", cstr(fileName));
     }
+    ASSERT(pEntry);
 
-    IDxcBlob* pSpirv = NULL;
-    pResult->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&pSpirv), NULL);
+    // Compose module and entry point into program
+    slang::IComponentType* pProgram = NULL;
+    slang::IComponentType* components[] = { pModule, pEntry };
+    pSession->createCompositeComponentType(components, 2, &pProgram);
+    ASSERT(pProgram);
 
-    uint64 bytecodeLen = pSpirv->GetBufferSize();
-    byte* bytecode = (byte*)pSpirv->GetBufferPointer();
+    // Linking program to resolve cross-module references (not really using module functionality for dw yet)
+    slang::IComponentType* pLinkedProgram = NULL;
+    ISlangBlob* pLinkDiag = NULL;
+    pProgram->link(&pLinkedProgram, &pLinkDiag);
+    if(pLinkDiag)
+    {
+        LOGLF("SHADER LINK", "%s", pLinkDiag->getBufferPointer());
+    }
+    ASSERT(pLinkedProgram);
 
+    // Generating kernel code which is passed to vulkan renderer
+    slang::IBlob* pKernelBlob = NULL;
+    pLinkedProgram->getEntryPointCode(0, 0, &pKernelBlob, &pDiag);
+    if(pDiag)
+    {
+        LOGLF("SHADER KERNEL GEN", "%s", pDiag->getBufferPointer());
+    }
+    ASSERT(pKernelBlob);
+
+#if SHADER_SPIRV_PRINT_OUTPUT
+
+    LOGF("%d", pKernelBlob->getBufferSize());
+    const char* spirvAsmText = (const char*)(pKernelBlob->getBufferPointer());
+    LOGF("%s", spirvAsmText);
+    ASSERT(0);
+
+#else
+
+    uint64 bytecodeLen = pKernelBlob->getBufferSize();
+    byte* bytecode = (byte*)pKernelBlob->getBufferPointer();
+    
     ShaderDesc desc = {};
     desc.mType = type;
     desc.mBytecodeSize = bytecodeLen;
     desc.pBytecode = (uint32*)bytecode;
     addShader(pRenderer, desc, ppOut);
-
-#else
-    ShaderType type = (ShaderType)shaderType;
-    shaderc_shader_kind kind;
-    if(type == SHADER_TYPE_VERT)
-    {
-        kind = shaderc_vertex_shader;
-    }
-    else if(type == SHADER_TYPE_FRAG)
-    {
-        kind = shaderc_fragment_shader;
-    }
-    else if(type == SHADER_TYPE_COMP)
-    {
-        kind = shaderc_compute_shader;
-    }
-    else
-    {
-        ASSERTF(0, "Unsupported shader type for shader %s", cstr(path));
-    }
-
-    shaderc_compiler_t compiler = shaderc_compiler_initialize();
-    shaderc_compile_options_t options = shaderc_compile_options_initialize();
-#if DW_DEBUG
-    shaderc_compile_options_set_generate_debug_info(options);
-    shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_zero);
-#else
-    shaderc_compile_options_set_optimization_level(options, shaderc_optimization_level_performance);
-#endif
-    shaderc_compile_options_set_source_language(options, shaderc_source_language_hlsl);
-    shaderc_compile_options_set_include_callbacks(
-            options, 
-            resolveInclude, 
-            releaseInclude, 
-            &pAssetManager->mArenaTemp);
-
-    // Defining type of shader
-    String typeStr = {};
-    if(type == SHADER_TYPE_VERT)
-    {
-        typeStr = str("VERTEX_SHADER");
-    }
-    if(type == SHADER_TYPE_FRAG)
-    {
-        typeStr = str("PIXEL_SHADER");
-    }
-    if(type == SHADER_TYPE_COMP)
-    {
-        typeStr = str("COMPUTE_SHADER");
-    }
-    shaderc_compile_options_add_macro_definition(
-            options, 
-            cstr(typeStr), 
-            typeStr.mLen, 
-            "1", 1);
-
-    // Add user defined precompilation options
-    // TODO(caio): Add support for custom preprocessor macros
-    for(uint32 i = 0; i < definesCount; i++)
-    {
-        shaderc_compile_options_add_macro_definition(
-                options, 
-                cstr(pDefines[i]), 
-                pDefines[i].mLen, 
-                "1", 1);
-    }
-
-    shaderc_compilation_result_t compiled = shaderc_compile_into_spv(
-            compiler,
-            cstr(code),
-            code.mLen,
-            kind,
-            cstr(path),
-            "main",
-            options);
-    uint64 errorCount = shaderc_result_get_num_errors(compiled);
-    if(errorCount)
-    {
-        LOGLF("SHADER COMPILE", "%s", shaderc_result_get_error_message(compiled));
-        ASSERT(0);
-    }
-
-    // TODO_DW: Is there a way to hook arena with shaderc?
-    uint64 bytecodeLen = shaderc_result_get_length(compiled);
-    byte* bytecode = (byte*)shaderc_result_get_bytes(compiled);
-
-    ShaderDesc desc = {};
-    desc.mType = type;
-    desc.mBytecodeSize = bytecodeLen;
-    desc.pBytecode = (uint32*)bytecode;
-    addShader(pRenderer, desc, ppOut);
-
-    shaderc_result_release(compiled);
-    shaderc_compile_options_release(options);
-    shaderc_compiler_release(compiler);
 #endif
 
     arenaClear(&pAssetManager->mArenaTemp);

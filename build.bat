@@ -98,8 +98,7 @@ if not exist "./build/%BUILD%" (
 )
 
 rem Building dependencies (always in release mode)
-rem TODO_DW: Just shaderc adds 80MB to dependency lib size. Maybe this should be changed.
-set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib %VULKAN_SDK_PATH%/Lib/shaderc_combined.lib 
+set DEPS=user32.lib gdi32.lib %VULKAN_SDK_PATH%/Lib/vulkan-1.lib
 for /R lib %%F in (*.lib) do (
     set DEPS=!DEPS! "%%F"
 )

@@ -30,33 +30,7 @@ struct HashMap
     };
 
     Array<Bucket> mBuckets;
-
-    Tv& operator[](Tk key)
-    {
-        uint64 keyHash = HASH(key);
-        for(uint64 i = 0; i < mBuckets.mCount; i++)
-        {
-            uint64 pos = (keyHash + i) % mBuckets.mCount;
-            Bucket& bucket = mBuckets[pos];
-            if(bucket.valid && bucket.key == key) return bucket.value;
-        }
-        ASSERT(0);      // Linear probing failed, hash map too small.
-        return mBuckets[0].value;
-    };
-
-    const Tv& operator[](Tk key) const
-    {
-
-        uint64 keyHash = HASH(key);
-        for(uint64 i = 0; i < mBuckets.mCount; i++)
-        {
-            uint64 pos = (keyHash + i) % mBuckets.mCount;
-            Bucket& bucket = mBuckets[pos];
-            if(bucket.valid && bucket.key == key) return bucket.value;
-        }
-        ASSERT(0);      // Linear probing failed, hash map too small.
-        return mBuckets[0].value;
-    };
+    uint64 mCount = 0;
 
     bool contains(Tk key)
     {
@@ -70,8 +44,43 @@ struct HashMap
         return false;
     }
 
+    Tv getValue(Tk key)
+    {
+#if DW_DEBUG
+        ASSERT(contains(key));
+#endif
+        uint64 keyHash = HASH(key);
+        for(uint64 i = 0; i < mBuckets.mCount; i++)
+        {
+            uint64 pos = (keyHash + i) % mBuckets.mCount;
+            Bucket& bucket = mBuckets[pos];
+            if(bucket.valid && bucket.key == key) return bucket.value;
+        }
+        ASSERT(0);      // Linear probing failed, hash map too small.
+        return mBuckets[0].value;
+    };
+
+    Tv& getValueRef(Tk key)
+    {
+#if DW_DEBUG
+        ASSERT(contains(key));
+#endif
+        uint64 keyHash = HASH(key);
+        for(uint64 i = 0; i < mBuckets.mCount; i++)
+        {
+            uint64 pos = (keyHash + i) % mBuckets.mCount;
+            Bucket& bucket = mBuckets[pos];
+            if(bucket.valid && bucket.key == key) return bucket.value;
+        }
+        ASSERT(0);      // Linear probing failed, hash map too small.
+        return mBuckets[0].value;
+    };
+
     bool insert(const Tk& key, const Tv& value)
     {
+#if DW_DEBUG
+        ASSERT(!contains(key));
+#endif
         uint64 keyHash = HASH(key);
         for(uint64 i = 0; i < mBuckets.mCount; i++)
         {
@@ -87,6 +96,7 @@ struct HashMap
             if(!mBuckets[i].valid)
             {
                 mBuckets[i] = { true, key, value };
+                mCount++;
                 return true;
             }
         }
@@ -96,6 +106,9 @@ struct HashMap
 
     void remove(const Tk& key)
     {
+#if DW_DEBUG
+        ASSERT(contains(key));
+#endif
         uint64 keyHash = HASH(key);
         for(uint64 i = 0; i < mBuckets.mCount; i++)
         {
@@ -103,6 +116,7 @@ struct HashMap
             if(mBuckets[i].valid && mBuckets[i].key == key)
             {
                 mBuckets[i].valid = false;
+                mCount--;
                 return;
             }
         }

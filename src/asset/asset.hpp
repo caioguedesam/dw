@@ -6,7 +6,6 @@
 struct Shader;
 struct Texture;
 struct Renderer;
-template<typename T>
 struct ResourceManager;
 
 struct AssetManagerDesc
@@ -30,9 +29,9 @@ void destroyAssetManager(AssetManager* pAssetManager);
 void initShaderCompiler();
 void destroyShaderCompiler();
 void loadShader(AssetManager* pAssetManager, Renderer* pRenderer,
-        String path, 
-        uint32 shaderType, String* pDefines, uint32 definesCount,
+        String fileName, uint32 shaderType, 
+        String* pDefines, uint32 definesCount, 
         Shader** ppOut);
 
-void loadTexture(AssetManager* pAssetManager, ResourceManager<Texture>* pResMan,
+void loadTexture(AssetManager* pAssetManager, ResourceManager* pResMan,
         String path, uint32 format, bool flipVertical, Texture** ppOut);

@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/base.hpp"
+#include "descriptor.hpp"
 #include "vulkan/vulkan_core.h"
 
 struct Renderer;
@@ -19,6 +20,15 @@ struct CommandBuffer
 
     VkCommandBuffer mVkCmd = VK_NULL_HANDLE;
     VkFence mVkFence = VK_NULL_HANDLE;
+
+    // Shader constants in the command buffer issuing the commands
+    byte mShaderConstantData[MAX_SHADER_CONSTANT_SIZE];
+    uint32 mShaderConstantSize = 0;
+
+    // Vulkan function pointers for extension commands
+    PFN_vkCmdBindResourceHeapEXT pfn_vkCmdBindResourceHeapEXT;
+    PFN_vkCmdBindSamplerHeapEXT pfn_vkCmdBindSamplerHeapEXT;
+    PFN_vkCmdPushDataEXT pfn_vkCmdPushDataEXT;
 };
 
 #define MAX_COMMAND_BUFFERS 16

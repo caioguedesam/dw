@@ -7,6 +7,7 @@
 #include "texture.hpp"
 #include "shader.hpp"
 #include "descriptor.hpp"
+#include "resource_manager.hpp"
 #include "command_buffer.hpp"
 #include "vulkan/vulkan_core.h"
 #include "vma/vk_mem_alloc.h"
@@ -127,6 +128,8 @@ struct RenderTarget
 void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
+HND getHandle(RenderTarget* pTarget);
+HND getRWHandle(RenderTarget* pTarget);
 
 ImageLayout getImageLayout(RenderTarget* pTarget);
 
@@ -270,18 +273,13 @@ struct ConstantBlock
     uint32 mSize = 0;
 };
 
-#define MAX_PIPELINE_RESOURCE_SETS 16
-#define MAX_PIPELINE_CONSTANTS 8
+#define MAX_PIPELINE_CONSTANTS 16
 struct GraphicsPipelineDesc
 {
     // Attachments
     uint32 mRenderTargetCount = 0;
     ImageFormat mRenderTargetFormats[MAX_PIPELINE_RENDER_TARGETS];
     ImageFormat mDepthTargetFormat = FORMAT_UNDEFINED;
-
-    // Shader resources
-    DescriptorSet* pDescriptorSets[MAX_PIPELINE_RESOURCE_SETS];
-    uint32 mDescriptorSetCount = 0;
 
     // Programmable stages
     Shader* pVS = NULL;
@@ -312,18 +310,12 @@ struct GraphicsPipelineDesc
                                 | COMPONENT_G
                                 | COMPONENT_B
                                 | COMPONENT_A;
-
-    // Constants
-    ConstantBlock mConstantBlocks[MAX_PIPELINE_CONSTANTS];
-    uint32 mConstantBlockCount = 0;
 };
 
 struct GraphicsPipeline
 {
     GraphicsPipelineDesc mDesc = {};
-
-    VkPipeline mVkPipeline      = VK_NULL_HANDLE;
-    VkPipelineLayout mVkLayout  = VK_NULL_HANDLE;
+    VkPipeline mVkPipeline = VK_NULL_HANDLE;
 };
 
 void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipeline** ppPipeline);
@@ -331,24 +323,14 @@ void removePipeline(Renderer* pRenderer, GraphicsPipeline** ppPipeline);
 
 struct ComputePipelineDesc
 {
-    // Shader resources
-    DescriptorSet* pDescriptorSets[MAX_PIPELINE_RESOURCE_SETS];
-    uint32 mDescriptorSetCount = 0;
-
     // Programmable stages
     Shader* pCS = NULL;
-
-    // Constants
-    ConstantBlock mConstantBlocks[MAX_PIPELINE_CONSTANTS];
-    uint32 mConstantBlockCount = 0;
 };
 
 struct ComputePipeline
 {
     ComputePipelineDesc mDesc = {};
-
     VkPipeline mVkPipeline      = VK_NULL_HANDLE;
-    VkPipelineLayout mVkLayout  = VK_NULL_HANDLE;
 };
 
 void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline** ppPipeline);
@@ -374,12 +356,13 @@ struct RendererDesc
     uint64 mMaxTextures             = 1024;
     uint64 mMaxSamplers             = 64;
     uint64 mMaxShaders              = 256;
-    uint64 mMaxDescriptorSets       = 64;
     uint64 mMaxRenderTargets        = 64;
     uint64 mMaxGraphicsPipelines    = 64;
     uint64 mMaxComputePipelines     = 64;
 };
 
+#define MAX_DESCRIPTOR_SETS 16
+#define MAX_PUSH_CONSTANT_SIZE 128 * sizeof(uint32)
 struct Renderer
 {
     // Pools for reusable render data
@@ -387,7 +370,6 @@ struct Renderer
     Pool poolTextures           = {};    
     Pool poolSamplers           = {};
     Pool poolShaders            = {};
-    Pool poolDescriptorSets     = {};
     Pool poolRenderTargets      = {};
     Pool poolGraphicsPipelines  = {};
     Pool poolComputePipelines   = {};
@@ -399,6 +381,9 @@ struct Renderer
     uint32 mActiveFrame = 0;
 
     Buffer* pStagingBuffer = NULL;
+
+    // Shader resources (global sets for bindless rendering)
+    ResourceSet mResourceSet = {};
 
     // Vulkan
     VkInstance mVkInstance = VK_NULL_HANDLE;
@@ -416,9 +401,15 @@ struct Renderer
     VmaAllocator mVkAllocator = VK_NULL_HANDLE;
     VkDescriptorPool mVkDescriptorPool = VK_NULL_HANDLE;
     VkCommandPool mVkCommandPool = VK_NULL_HANDLE;
-    VkSemaphore mVkRenderSemaphores[CONCURRENT_FRAMES];
-    VkSemaphore mVkPresentSemaphores[CONCURRENT_FRAMES];
+
+    // Synchronization
+    // One image acquired semaphore per concurrent frame. Each frame in flight's submit waits for that frame's image acquire to finish (when it is able to present again).
+    VkSemaphore mVkImageAcquiredSemaphores[CONCURRENT_FRAMES];
+    // One render finished semaphore per swapchain image. The acquired image needs to wait until submit is finished before it can be presented.
+    VkSemaphore mVkRenderFinishedSemaphores[MAX_SWAPCHAIN_IMAGES];
+    // One fence per concurrent frame. To get a command buffer for a frame in flight, CPU has to wait until that frame's previous command buffer finishes submission.
     VkFence mVkFences[CONCURRENT_FRAMES];
+    // Immediate fence is used for immediate command buffer submissions (submit and wait in sequence).
     VkFence mVkImmediateFence = VK_NULL_HANDLE;
 };
 
@@ -426,7 +417,8 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer);
 void destroyRenderer(Renderer* pRenderer);
 
 void waitForCommands(Renderer* pRenderer);
-void acquireNextImage(Renderer* pRenderer, uint32 frame);
+void advanceFrame(Renderer* pRenderer, uint32 frame);
+void acquireNextImage(Renderer* pRenderer);
 void present(Renderer* pRenderer);
 
 // --------------------------------------
@@ -443,14 +435,11 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);
 void cmdUnbindRenderTargets(CommandBuffer* pCmd);
 void cmdBindGraphicsPipeline(CommandBuffer* pCmd, GraphicsPipeline* pPipeline);
 void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline);
-void cmdBindDescriptorSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        DescriptorSet* pDescriptorSet, uint32 setBinding);
-void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        DescriptorSet* pDescriptorSet, uint32 setBinding);
-void cmdSetConstants(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        uint32 constant, uint64 size, void* pData);
-void cmdSetConstants(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        uint32 constant, uint64 size, void* pData);
+void cmdBindResources(CommandBuffer* pCmd, Renderer* pRenderer);
+void cmdResetShaderConstants(CommandBuffer* pCmd);
+void cmdPushShaderConstant(CommandBuffer* pCmd, uint32 value);
+void cmdPushShaderConstant(CommandBuffer* pCmd, uint64 value);
+void cmdSetShaderConstants(CommandBuffer* pCmd, Renderer* pRenderer);
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
 void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h);

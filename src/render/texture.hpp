@@ -80,19 +80,26 @@ struct TextureDesc
 
 struct Texture
 {
-    HND mHandle = HND_INVALID;
+    //HND mHandle = HND_INVALID;
     TextureDesc mDesc = {};
 
     VkImage         mVkImage        = VK_NULL_HANDLE;
     VkImageView     mVkImageView    = VK_NULL_HANDLE;
     VmaAllocation   mVkAllocation   = VK_NULL_HANDLE;
+    VkImageViewCreateInfo mVkCreateInfo = {};
+
+    HND mGPUHandle = HND_INVALID;
+    HND mGPURWHandle = HND_INVALID;
 };
 
-void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture,
-        void* pSrc = NULL, uint64 srcSize = 0);
+void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
+HND getHandle(Texture* pTexture);
+HND getRWHandle(Texture* pTexture);
 
 uint32 getMaxMipCount(uint32 w, uint32 h);
+
+bool isFormatReadWrite(Renderer* pRenderer, ImageFormat format);
 
 // --------------------------------------
 // Sampler
@@ -133,10 +140,14 @@ struct Sampler
     SamplerDesc mDesc = {};
 
     VkSampler vkSampler = VK_NULL_HANDLE;
+    VkSamplerCreateInfo vkCreateInfo = {};
+
+    HND mGPUHandle = HND_INVALID;
 };
 
 void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler);
 void removeSampler(Renderer* pRenderer, Sampler** ppSampler);
+HND getHandle(Sampler* pSampler);
 
 // --------------------------------------
 // Render Commands

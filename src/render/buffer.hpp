@@ -27,8 +27,9 @@ struct BufferDesc
     uint64 mSize    = 0;    // Total buffer size in bytes
     uint64 mStride  = 0;    // Size in bytes between elements
     uint64 mCount   = 0;    // Number of elements in buffer
+    uint64 mAlign   = 0;    // Alignment (0 defaults to API alignment requirements)
 
-    // TODO_DW: Should be able to alter buffer memory mapping (CPU, GPU, CPU and GPU etc)
+    // TODO(caio): Should be able to alter buffer memory mapping (CPU, GPU, CPU and GPU etc)
 };
 
 struct Buffer
@@ -37,10 +38,18 @@ struct Buffer
 
     VkBuffer        mVkBuffer           = VK_NULL_HANDLE;
     VmaAllocation   mVkAllocation       = VK_NULL_HANDLE;
+    VkDeviceAddress mVkDeviceAddr       = 0;
+
+    HND mGPUHandle = HND_INVALID;
 };
 
 void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pSrc = NULL);
 void removeBuffer(Renderer* pRenderer, Buffer** ppBuffer);
+HND getHandle(Buffer* pBuffer);
+uint64 getBufferAddress(Buffer* pBuffer);
 
-uint32  getBufferAlignment(Renderer* pRenderer, Buffer* pBuffer);
+void* mapBufferMemory(Renderer* pRenderer, Buffer* pBuffer);
+void  unmapBufferMemory(Renderer* pRenderer, Buffer* pBuffer);
+
+uint32  getBufferAlignment(Renderer* pRenderer, BufferDesc bufferDesc);
 void    copyToBuffer(Renderer* pRenderer, Buffer* pDst, uint64 dstOffset, void* srcData, uint64 srcSize);

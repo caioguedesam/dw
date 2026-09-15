@@ -441,9 +441,9 @@ void testHashMap()
         ASSERT(map.contains("apple"));
         ASSERT(map.contains("banana"));
         ASSERT(map.contains("cherry"));
-        ASSERT(map["apple"] == 5);
-        ASSERT(map["banana"] == 10);
-        ASSERT(map["cherry"] == 15);
+        ASSERT(map.getValue("apple") == 5);
+        ASSERT(map.getValue("banana") == 10);
+        ASSERT(map.getValue("cherry") == 15);
     }
 
     // Replace value for same key
@@ -451,10 +451,10 @@ void testHashMap()
         HashMap<const char*, int> map = hashmap<const char*, int>(&arena, 8);
         bool ret = map.insert("apple", 1);
         ASSERT(ret);
-        ASSERT(map["apple"] == 1);
+        ASSERT(map.getValue("apple") == 1);
         ret = map.insert("apple", 99);
         ASSERT(!ret);
-        ASSERT(map["apple"] == 1);
+        ASSERT(map.getValue("apple") == 1);
     }
 
     // Contains & remove
@@ -484,7 +484,7 @@ void testHashMap()
         ASSERT(map.contains("keyB"));
         ASSERT(map.contains("keyC"));
         ASSERT(map.contains("keyD"));
-        ASSERT(map["keyB"] == 2);
+        ASSERT(map.getValue("keyB") == 2);
     }
 
     // String keys
@@ -501,9 +501,9 @@ void testHashMap()
         ASSERT(map.contains(key1));
         ASSERT(map.contains(key2));
         ASSERT(map.contains(key3));
-        ASSERT(map[key1] == 10);
-        ASSERT(map[key2] == 20);
-        ASSERT(map[key3] == 30);
+        ASSERT(map.getValue(key1) == 10);
+        ASSERT(map.getValue(key2) == 20);
+        ASSERT(map.getValue(key3) == 30);
     }
 
     // Pointer keys
@@ -518,7 +518,7 @@ void testHashMap()
         ASSERT(map.contains(&a));
         ASSERT(map.contains(&b));
         ASSERT(map.contains(&c));
-        ASSERT(strcmp(map[&b], "beta") == 0);
+        ASSERT(strcmp(map.getValue(&b), "beta") == 0);
 
         map.remove(&b);
         ASSERT(!map.contains(&b));

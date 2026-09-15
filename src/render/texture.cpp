@@ -4,6 +4,7 @@
 #include "command_buffer.hpp"
 #include "../core/debug.hpp"
 #include "../math/math.hpp"
+#include "src/render/descriptor.hpp"
 #include "vma/vk_mem_alloc.h"
 #include "vulkan/vulkan_core.h"
 
@@ -38,8 +39,7 @@ VkImageViewType getVkImageViewType(TextureType type)
     }
 }
 
-void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture,
-        void* pSrc, uint64 srcSize)
+void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
 {
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture == NULL);
@@ -104,10 +104,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture,
     (*ppTexture)->mVkImage = vkImage;
     (*ppTexture)->mVkImageView = vkImageView;
     (*ppTexture)->mVkAllocation = vkAlloc;
-
-    if(pSrc)
-    {
-    }
+    (*ppTexture)->mVkCreateInfo = viewInfo;
 
     // TODO_DW: Generate texture mipmap based on params
 }
@@ -130,6 +127,18 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
 
     poolFree(&pRenderer->poolTextures, *ppTexture);
     *ppTexture = NULL;
+}
+
+HND getHandle(Texture* pTexture)
+{
+    ASSERT(pTexture && pTexture->mGPUHandle != HND_INVALID);
+    return pTexture->mGPUHandle;
+}
+
+HND getRWHandle(Texture* pTexture)
+{
+    ASSERT(pTexture && pTexture->mGPURWHandle != HND_INVALID);
+    return pTexture->mGPURWHandle;
 }
 
 void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler)
@@ -175,6 +184,7 @@ void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler)
 
     (*ppSampler)->mDesc = desc;
     (*ppSampler)->vkSampler = vkSampler;
+    (*ppSampler)->vkCreateInfo = info;
 }
 
 void removeSampler(Renderer* pRenderer, Sampler** ppSampler)
@@ -190,9 +200,30 @@ void removeSampler(Renderer* pRenderer, Sampler** ppSampler)
     *ppSampler = NULL;
 }
 
+HND getHandle(Sampler* pSampler)
+{
+    ASSERT(pSampler && pSampler->mGPUHandle != HND_INVALID);
+    return pSampler->mGPUHandle;
+}
+
 uint32 getMaxMipCount(uint32 w, uint32 h)
 {
     return (uint32)(floorf(log2f(MAX(w, h))));
+}
+
+bool isFormatReadWrite(Renderer* pRenderer, ImageFormat format)
+{
+    ASSERT(pRenderer);
+
+    VkFormatProperties2 props = {};
+    props.sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2;
+    
+    vkGetPhysicalDeviceFormatProperties2(
+        pRenderer->mVkPhysicalDevice,
+        (VkFormat)format,
+        &props);
+
+    return props.formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_BIT;
 }
 
 void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mipFilter)
@@ -280,3 +311,4 @@ void cmdCopyToTexture(CommandBuffer* pCmd, Texture* pDst, Buffer* pSrc)
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
             1, &region);
 }
+

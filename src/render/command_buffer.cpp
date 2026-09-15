@@ -16,11 +16,21 @@ void initCommandBuffers(Renderer* pRenderer)
     VkResult ret = vkAllocateCommandBuffers(pRenderer->mVkDevice, &info, vkCommandBuffers);
     ASSERTVK(ret);
 
+    PFN_vkCmdBindResourceHeapEXT pfn_vkCmdBindResourceHeapEXT = 
+        (PFN_vkCmdBindResourceHeapEXT)vkGetDeviceProcAddr(pRenderer->mVkDevice, "vkCmdBindResourceHeapEXT");
+    PFN_vkCmdBindSamplerHeapEXT pfn_vkCmdBindSamplerHeapEXT = 
+        (PFN_vkCmdBindSamplerHeapEXT)vkGetDeviceProcAddr(pRenderer->mVkDevice, "vkCmdBindSamplerHeapEXT");
+    PFN_vkCmdPushDataEXT pfn_vkCmdPushDataEXT = 
+        (PFN_vkCmdPushDataEXT)vkGetDeviceProcAddr(pRenderer->mVkDevice, "vkCmdPushDataEXT");
+
     for(uint32 i = 0; i < MAX_COMMAND_BUFFERS; i++)
     {
         pRenderer->mCommandBuffers[i].mState = COMMAND_BUFFER_IDLE;
         pRenderer->mCommandBuffers[i].mVkCmd = vkCommandBuffers[i];
         pRenderer->mCommandBuffers[i].mVkFence = VK_NULL_HANDLE;
+        pRenderer->mCommandBuffers[i].pfn_vkCmdBindResourceHeapEXT = pfn_vkCmdBindResourceHeapEXT;
+        pRenderer->mCommandBuffers[i].pfn_vkCmdBindSamplerHeapEXT = pfn_vkCmdBindSamplerHeapEXT;
+        pRenderer->mCommandBuffers[i].pfn_vkCmdPushDataEXT = pfn_vkCmdPushDataEXT;
     }
 }
 
@@ -116,15 +126,15 @@ void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd)
     info.commandBufferCount = 1;
     info.pCommandBuffers = &pCmd->mVkCmd;
 
-    VkSemaphore vkRenderSemaphore = pRenderer->mVkRenderSemaphores[pRenderer->mActiveFrame];
-    VkSemaphore vkPresentSemaphore = pRenderer->mVkPresentSemaphores[pRenderer->mActiveFrame];
+    VkSemaphore vkRenderFinishedSemaphore = pRenderer->mVkRenderFinishedSemaphores[pRenderer->mSwapChain.mActiveImage];
+    VkSemaphore vkImageAcquiredSemaphore = pRenderer->mVkImageAcquiredSemaphores[pRenderer->mActiveFrame];
 
     VkPipelineStageFlags vkWaitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     info.pWaitDstStageMask = &vkWaitStage;
     info.waitSemaphoreCount = 1;
-    info.pWaitSemaphores = &vkPresentSemaphore;
+    info.pWaitSemaphores = &vkImageAcquiredSemaphore;
     info.signalSemaphoreCount = 1;
-    info.pSignalSemaphores = &vkRenderSemaphore;
+    info.pSignalSemaphores = &vkRenderFinishedSemaphore;
 
     VkResult ret = vkQueueSubmit(pRenderer->mVkQueue, 
             1, 

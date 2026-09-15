@@ -47,4 +47,5 @@ void gpuTimerReadResults(GpuTimestampParams* pParams);
 void gpuTimerStart(GpuTimestampParams* pParams);
 void gpuTimestamp(String name, GpuTimestampParams* pParams);
 
-void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h);
+void uiGpuTimings(Arena* pScratchArena, GpuTimer* pGpuTimer);
+//-void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h);

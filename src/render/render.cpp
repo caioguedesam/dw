@@ -63,7 +63,7 @@ const char* vkResultToStr(VkResult result)
     ({\
      int32 result = -1;\
      int32 arrLen = ARR_LEN((ARR));\
-     for(int32 iProp = 0; i < arrLen; iProp++) {\
+     for(int32 iProp = 0; iProp < arrLen; iProp++) {\
         if(strcmp(MATCH, ARR[iProp].MEMBER_NAME) == 0) {\
             result = iProp;\
             break;\
@@ -221,15 +221,21 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
 
     **ppTarget = {};
 
-    TextureDesc textureDesc = {};
-    textureDesc.mFormat = desc.mFormat;
-    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
-    textureDesc.mType = TEXTURE_TYPE_2D;
-    textureDesc.mUsage =
+    uint32 usage = 
         TEXTURE_USAGE_COLOR_TARGET |
         TEXTURE_USAGE_TRANSFER_SRC |
         TEXTURE_USAGE_TRANSFER_DST |
         TEXTURE_USAGE_SAMPLED;
+    if(isFormatReadWrite(pRenderer, desc.mFormat))
+    {
+        usage |= TEXTURE_USAGE_STORAGE;
+    }
+
+    TextureDesc textureDesc = {};
+    textureDesc.mFormat = desc.mFormat;
+    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
+    textureDesc.mType = TEXTURE_TYPE_2D;
+    textureDesc.mUsage = usage;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
@@ -252,16 +258,21 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
 
     **ppTarget = {};
 
+    uint32 usage = 
+        TEXTURE_USAGE_DEPTH_TARGET |
+        TEXTURE_USAGE_TRANSFER_SRC |
+        TEXTURE_USAGE_TRANSFER_DST |
+        TEXTURE_USAGE_SAMPLED;
+    if(isFormatReadWrite(pRenderer, desc.mFormat))
+    {
+        usage |= TEXTURE_USAGE_STORAGE;
+    }
+
     TextureDesc textureDesc = {};
     textureDesc.mFormat = desc.mFormat;
     textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
     textureDesc.mType = TEXTURE_TYPE_2D;
-    textureDesc.mUsage =
-        TEXTURE_USAGE_DEPTH_TARGET |
-        TEXTURE_USAGE_TRANSFER_SRC |
-        TEXTURE_USAGE_TRANSFER_DST |
-        TEXTURE_USAGE_STORAGE      |
-        TEXTURE_USAGE_SAMPLED;
+    textureDesc.mUsage = usage;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
@@ -289,6 +300,20 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget)
 
     poolFree(&pRenderer->poolRenderTargets, *ppTarget);
     *ppTarget = NULL;
+}
+
+HND getHandle(RenderTarget* pTarget)
+{
+    ASSERT(pTarget && pTarget->pTexture);
+    ASSERT(pTarget->pTexture->mGPUHandle != HND_INVALID);
+    return pTarget->pTexture->mGPUHandle;
+}
+
+HND getRWHandle(RenderTarget* pTarget)
+{
+    ASSERT(pTarget && pTarget->pTexture);
+    ASSERT(pTarget->pTexture->mGPURWHandle != HND_INVALID);
+    return pTarget->pTexture->mGPURWHandle;
 }
 
 ImageLayout getImageLayout(RenderTarget* pTarget)
@@ -350,6 +375,7 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
 {
     ASSERT(pRenderer && ppPipeline);
     ASSERT(*ppPipeline == NULL);
+    ASSERT(pRenderer->mResourceSet.mVkPipelineBindingLayout != VK_NULL_HANDLE);
 
     *ppPipeline = (GraphicsPipeline*)poolAlloc(&pRenderer->poolGraphicsPipelines);
 
@@ -439,6 +465,13 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     blendInfo.attachmentCount = desc.mRenderTargetCount;
     blendInfo.pAttachments = blendStates;
 
+    // Multisampling
+    // TODO(caio): Support multisampling, currently only fixed 1 sample for all pipelines
+    VkPipelineMultisampleStateCreateInfo msInfo = {};
+    msInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    msInfo.sampleShadingEnable = VK_FALSE;
+    msInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
     // Depth/stencil state
     VkPipelineDepthStencilStateCreateInfo depthInfo = {};
     depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
@@ -447,33 +480,6 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     depthInfo.depthCompareOp = (VkCompareOp)desc.mDepthOp;
     depthInfo.depthBoundsTestEnable = VK_FALSE;
     depthInfo.stencilTestEnable = VK_FALSE;     // TODO_DW: Stencil
-
-    // Resource set layout
-    VkDescriptorSetLayout setLayouts[desc.mDescriptorSetCount];
-    for(uint32 i = 0; i < desc.mDescriptorSetCount; i++)
-    {
-        setLayouts[i] = desc.pDescriptorSets[i]->mVkLayout;
-    }
-
-    VkPipelineLayoutCreateInfo layoutInfo = {};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
-    layoutInfo.pSetLayouts = setLayouts;
-    layoutInfo.pushConstantRangeCount = desc.mConstantBlockCount;
-    VkPushConstantRange pushConstantRanges[MAX_PIPELINE_CONSTANTS];
-    for(uint32 i = 0; i < desc.mConstantBlockCount; i++)
-    {
-        pushConstantRanges[i] = {};
-        pushConstantRanges[i].stageFlags = desc.mConstantBlocks[i].mShaderTypes;
-        pushConstantRanges[i].offset = 0;   // TODO_DW: Push constant range offsets?
-        pushConstantRanges[i].size = desc.mConstantBlocks[i].mSize;
-    }
-    layoutInfo.pPushConstantRanges = pushConstantRanges;
-    VkPipelineLayout vkLayout;
-    VkResult ret = vkCreatePipelineLayout(pRenderer->mVkDevice,
-            &layoutInfo,
-            NULL,
-            &vkLayout);
 
     // Pipeline
     VkPipelineRenderingCreateInfo renderInfo = {};
@@ -484,7 +490,6 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
 
     VkGraphicsPipelineCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    info.pNext = &renderInfo;
     info.stageCount = 2;
     info.pStages = shaderInfos;
     info.pVertexInputState = &viInfo;
@@ -493,11 +498,13 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     info.pViewportState = &vpInfo;
     info.pRasterizationState = &rsInfo;
     info.pColorBlendState = &blendInfo;
+    info.pMultisampleState = &msInfo;
     info.pDepthStencilState = &depthInfo;
-    info.layout = vkLayout;
+    info.layout = pRenderer->mResourceSet.mVkPipelineBindingLayout;
     info.renderPass = VK_NULL_HANDLE;
+    info.pNext = &renderInfo;
     VkPipeline vkPipeline;
-    ret = vkCreateGraphicsPipelines(pRenderer->mVkDevice, 
+    VkResult ret = vkCreateGraphicsPipelines(pRenderer->mVkDevice, 
             VK_NULL_HANDLE, 
             1, 
             &info, 
@@ -507,7 +514,6 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
 
     (*ppPipeline)->mDesc = desc;
     (*ppPipeline)->mVkPipeline = vkPipeline;
-    (*ppPipeline)->mVkLayout = vkLayout;
 }
 
 void removePipeline(Renderer* pRenderer, GraphicsPipeline** ppPipeline)
@@ -515,7 +521,6 @@ void removePipeline(Renderer* pRenderer, GraphicsPipeline** ppPipeline)
     ASSERT(pRenderer && ppPipeline);
     ASSERT(*ppPipeline);
 
-    vkDestroyPipelineLayout(pRenderer->mVkDevice, (*ppPipeline)->mVkLayout, NULL);
     vkDestroyPipeline(pRenderer->mVkDevice, (*ppPipeline)->mVkPipeline, NULL);
 
     **ppPipeline = {};
@@ -528,6 +533,7 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
 {
     ASSERT(pRenderer && ppPipeline);
     ASSERT(*ppPipeline == NULL);
+    ASSERT(pRenderer->mResourceSet.mVkPipelineBindingLayout != VK_NULL_HANDLE);
 
     *ppPipeline = (ComputePipeline*)poolAlloc(&pRenderer->poolComputePipelines);
 
@@ -540,40 +546,13 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
     shaderInfo.module = desc.pCS->mVkShader;
     shaderInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    // Resource set layout
-    VkDescriptorSetLayout setLayouts[desc.mDescriptorSetCount];
-    for(uint32 i = 0; i < desc.mDescriptorSetCount; i++)
-    {
-        setLayouts[i] = desc.pDescriptorSets[i]->mVkLayout;
-    }
-
-    VkPipelineLayoutCreateInfo layoutInfo = {};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = desc.mDescriptorSetCount;
-    layoutInfo.pSetLayouts = setLayouts;
-    layoutInfo.pushConstantRangeCount = desc.mConstantBlockCount;
-    VkPushConstantRange pushConstantRanges[MAX_PIPELINE_CONSTANTS];
-    for(uint32 i = 0; i < desc.mConstantBlockCount; i++)
-    {
-        pushConstantRanges[i] = {};
-        pushConstantRanges[i].stageFlags = desc.mConstantBlocks[i].mShaderTypes;
-        pushConstantRanges[i].offset = 0;   // TODO_DW: Push constant range offsets?
-        pushConstantRanges[i].size = desc.mConstantBlocks[i].mSize;
-    }
-    layoutInfo.pPushConstantRanges = pushConstantRanges;
-    VkPipelineLayout vkLayout;
-    VkResult ret = vkCreatePipelineLayout(pRenderer->mVkDevice,
-            &layoutInfo,
-            NULL,
-            &vkLayout);
-
-    // Pipeline
     VkComputePipelineCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    info.layout = vkLayout;
+    info.layout = pRenderer->mResourceSet.mVkPipelineBindingLayout;
     info.stage = shaderInfo;
+    //info.pNext = &flags2;
     VkPipeline vkPipeline;
-    ret = vkCreateComputePipelines(pRenderer->mVkDevice, 
+    VkResult ret = vkCreateComputePipelines(pRenderer->mVkDevice, 
             VK_NULL_HANDLE, 
             1, 
             &info, 
@@ -583,7 +562,6 @@ void addPipeline(Renderer* pRenderer, ComputePipelineDesc desc, ComputePipeline*
 
     (*ppPipeline)->mDesc = desc;
     (*ppPipeline)->mVkPipeline = vkPipeline;
-    (*ppPipeline)->mVkLayout = vkLayout;
 }
 
 void removePipeline(Renderer* pRenderer, ComputePipeline** ppPipeline)
@@ -591,7 +569,6 @@ void removePipeline(Renderer* pRenderer, ComputePipeline** ppPipeline)
     ASSERT(pRenderer && ppPipeline);
     ASSERT(*ppPipeline);
 
-    vkDestroyPipelineLayout(pRenderer->mVkDevice, (*ppPipeline)->mVkLayout, NULL);
     vkDestroyPipeline(pRenderer->mVkDevice, (*ppPipeline)->mVkPipeline, NULL);
 
     **ppPipeline = {};
@@ -610,7 +587,6 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     initPool(sizeof(Texture), desc.mMaxTextures, &pRenderer->poolTextures);
     initPool(sizeof(Sampler), desc.mMaxSamplers, &pRenderer->poolSamplers);
     initPool(sizeof(Shader), desc.mMaxShaders, &pRenderer->poolShaders);
-    initPool(sizeof(DescriptorSet), desc.mMaxDescriptorSets, &pRenderer->poolDescriptorSets);
     initPool(sizeof(RenderTarget), desc.mMaxRenderTargets, &pRenderer->poolRenderTargets);
     initPool(sizeof(GraphicsPipeline), desc.mMaxGraphicsPipelines, &pRenderer->poolGraphicsPipelines);
     initPool(sizeof(ComputePipeline), desc.mMaxComputePipelines, &pRenderer->poolComputePipelines);
@@ -627,10 +603,27 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         appInfo.engineVersion = VK_MAKE_VERSION(1,0,0);
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
+#if DW_DEBUG
+        VkValidationFeatureEnableEXT validationEnables[] =
+        {
+            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+        };
+
+        VkValidationFeaturesEXT validationFeatures = {};
+        validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+        validationFeatures.enabledValidationFeatureCount = 1;
+        validationFeatures.pEnabledValidationFeatures = validationEnables;
+        validationFeatures.disabledValidationFeatureCount = 0;
+        validationFeatures.pDisabledValidationFeatures = NULL;
+#endif
+
         // Instance
         VkInstanceCreateInfo instanceInfo = {};
         instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         instanceInfo.pApplicationInfo = &appInfo;
+#if DW_DEBUG
+        //instanceInfo.pNext = &validationFeatures;
+#endif
 
         // Extensions
         const char* pExtensions[] =
@@ -720,7 +713,6 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     const char* pDeviceExtensions[] =
     {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        //VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME,
     };
     {
         // Selecting the first device to match requirements (might select least powerful GPU)
@@ -734,6 +726,18 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         for(int32 i = 0; i < deviceCount; i++)
         {
             VkPhysicalDevice device = devices[i];
+
+            VkPhysicalDeviceProperties properties;
+            VkPhysicalDeviceFeatures features;
+            vkGetPhysicalDeviceProperties(device, &properties);
+            vkGetPhysicalDeviceFeatures(device, &features);
+
+            LOGF("Device: %s", properties.deviceName);
+            LOGF("Driver Version: %u", properties.driverVersion);
+            LOGF("API Version: %u.%u.%u", 
+                    VK_VERSION_MAJOR(properties.apiVersion),
+                    VK_VERSION_MINOR(properties.apiVersion),
+                    VK_VERSION_PATCH(properties.apiVersion));
 
             // Check for extension support
             uint32 extensionCount = 0;
@@ -749,6 +753,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
                 int32 match = FIND_STRING_IN_VK_PROPERTIES(deviceExtensions, extensionName, ext);
                 if(match == -1)
                 {
+                    LOGLF("VULKAN INIT", "[GPU %d] Device doesn't support extension: %s", i, ext);
                     supportsExtensions = false;
                     break;
                 }
@@ -763,11 +768,6 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
             if(!surfaceFormatCount || !surfacePresentModeCount) continue;
 
             // Check for desired application features support
-            VkPhysicalDeviceProperties properties;
-            VkPhysicalDeviceFeatures features;
-            vkGetPhysicalDeviceProperties(device, &properties);
-            vkGetPhysicalDeviceFeatures(device, &features);
-
             uint32 major = VK_VERSION_MAJOR(properties.apiVersion);
             uint32 minor = VK_VERSION_MINOR(properties.apiVersion);
             if(major < 1 || minor < 3) continue;
@@ -779,22 +779,25 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
             if(!features.shaderStorageImageReadWithoutFormat) continue;
             if(!features.shaderStorageImageWriteWithoutFormat) continue;
 
-            VkPhysicalDeviceUniformBufferStandardLayoutFeatures uboLayoutFeature = {};
-            uboLayoutFeature.sType =
-                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES;
+            VkPhysicalDeviceUniformBufferStandardLayoutFeatures uboLayoutFeatures = {};
+            uboLayoutFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES;
             
             VkPhysicalDeviceFeatures2 features2 = {};
             features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-            features2.pNext = &uboLayoutFeature;
+            features2.pNext = &uboLayoutFeatures;
             
             vkGetPhysicalDeviceFeatures2(device, &features2);
-            if(!uboLayoutFeature.uniformBufferStandardLayout) continue;
+            if(!uboLayoutFeatures.uniformBufferStandardLayout)
+            {
+                LOGLF("VULKAN INIT", "[GPU %d] Failed to find uniform buffer standard layout extension", i);
+                continue;
+            };
             
             selectedDevice = i;
 
             break;
         }
-        ASSERT(selectedDevice != -1);
+        ASSERT(selectedDevice != -1);   // Couldn't find a device which supports all required features
         vkPhysicalDevice = devices[selectedDevice];
         vkGetPhysicalDeviceProperties(vkPhysicalDevice, &vkPhysicalDeviceProps);
 
@@ -845,6 +848,11 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         float priority = 1;
         queueInfo.pQueuePriorities = &priority;
 
+        VkPhysicalDeviceVulkan13Features features13 = {};
+        features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        features13.dynamicRendering = VK_TRUE;
+        features13.shaderDemoteToHelperInvocation = VK_TRUE;
+
         VkPhysicalDeviceVulkan12Features features12 = {};
         features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
         features12.drawIndirectCount = VK_TRUE;
@@ -855,6 +863,9 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         features12.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
         features12.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
         features12.uniformBufferStandardLayout = VK_TRUE;
+        features12.runtimeDescriptorArray = VK_TRUE;
+        features12.bufferDeviceAddress = VK_TRUE;
+        features12.pNext = &features13;
 
         VkPhysicalDeviceVulkan11Features features11 = {};
         features11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
@@ -868,19 +879,9 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         features.shaderStorageImageReadWithoutFormat = VK_TRUE;
         features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
 
-        VkPhysicalDeviceDynamicRenderingFeatures dynamicFeature = {};
-        dynamicFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-        dynamicFeature.dynamicRendering = VK_TRUE;
-        dynamicFeature.pNext = &features11;
-
-        VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT demoteFeature = {};
-        demoteFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT;
-        demoteFeature.shaderDemoteToHelperInvocation = VK_TRUE;
-        demoteFeature.pNext = &dynamicFeature;
-
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceInfo.pNext = &demoteFeature;
+        deviceInfo.pNext = &features11;
         deviceInfo.queueCreateInfoCount = 1;
         deviceInfo.pQueueCreateInfos = &queueInfo;
         deviceInfo.pEnabledFeatures = &features;
@@ -900,30 +901,28 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         info.instance = vkInstance;
         info.physicalDevice = vkPhysicalDevice;
         info.device = vkDevice;
+        info.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
         VkResult ret = vmaCreateAllocator(&info, &vkAllocator);
         ASSERTVK(ret);
     }
 
-    // Initializing descriptor pools for allocating descriptors
-    uint32 maxPoolSize = 1000;
-    uint32 maxSets = 1000;
+    // Initializing descriptor pools for allocating descriptors (single descriptor set)
+    uint32 maxPoolSize = 100000;
     VkDescriptorPool vkDescriptorPool;
     {
         VkDescriptorPoolSize poolSizes[] =
         {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,            maxPoolSize},
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,    maxPoolSize},
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,            maxPoolSize},
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,    maxPoolSize},
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,            1},
             { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,             maxPoolSize},
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,             maxPoolSize},
             { VK_DESCRIPTOR_TYPE_SAMPLER,                   maxPoolSize},
         };
         VkDescriptorPoolCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
         info.poolSizeCount = ARR_LEN(poolSizes);
         info.pPoolSizes = poolSizes;
-        info.maxSets = maxSets;
+        info.maxSets = 1;
         info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
         VkResult ret = vkCreateDescriptorPool(vkDevice, &info, NULL, &vkDescriptorPool);
         ASSERTVK(ret);
@@ -944,13 +943,18 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
     // Initializing sync primitives
     {
         VkResult ret;
+        for(uint32 i = 0; i < MAX_SWAPCHAIN_IMAGES; i++)
+        {
+            VkSemaphoreCreateInfo semaphoreInfo = {};
+            semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+            ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, NULL, &pRenderer->mVkRenderFinishedSemaphores[i]);
+            ASSERTVK(ret);
+        }
         for(uint32 i = 0; i < CONCURRENT_FRAMES; i++)
         {
             VkSemaphoreCreateInfo semaphoreInfo = {};
             semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, NULL, &pRenderer->mVkRenderSemaphores[i]);
-            ASSERTVK(ret);
-            ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, NULL, &pRenderer->mVkPresentSemaphores[i]);
+            ret = vkCreateSemaphore(vkDevice, &semaphoreInfo, NULL, &pRenderer->mVkImageAcquiredSemaphores[i]);
             ASSERTVK(ret);
 
             VkFenceCreateInfo fenceInfo = {};
@@ -1007,14 +1011,18 @@ void destroyRenderer(Renderer* pRenderer)
 
     waitForCommands(pRenderer);
 
+    destroyResourceSet(pRenderer);
+
     removeBuffer(pRenderer, &pRenderer->pStagingBuffer);
 
     destroySwapChain(pRenderer, &pRenderer->mSwapChain);
     
+    for(uint32 i = 0; i < MAX_SWAPCHAIN_IMAGES; i++)
+        vkDestroySemaphore(pRenderer->mVkDevice, pRenderer->mVkRenderFinishedSemaphores[i], NULL);
+
     for(uint32 i = 0; i < CONCURRENT_FRAMES; i++)
     {
-        vkDestroySemaphore(pRenderer->mVkDevice, pRenderer->mVkRenderSemaphores[i], NULL);
-        vkDestroySemaphore(pRenderer->mVkDevice, pRenderer->mVkPresentSemaphores[i], NULL);
+        vkDestroySemaphore(pRenderer->mVkDevice, pRenderer->mVkImageAcquiredSemaphores[i], NULL);
         vkDestroyFence(pRenderer->mVkDevice, pRenderer->mVkFences[i], NULL);
     }
     vkDestroyFence(pRenderer->mVkDevice, pRenderer->mVkImmediateFence, NULL);
@@ -1035,7 +1043,6 @@ void destroyRenderer(Renderer* pRenderer)
     destroyPool(&pRenderer->poolTextures);
     destroyPool(&pRenderer->poolSamplers);
     destroyPool(&pRenderer->poolShaders);
-    destroyPool(&pRenderer->poolDescriptorSets);
     destroyPool(&pRenderer->poolRenderTargets);
     destroyPool(&pRenderer->poolGraphicsPipelines);
     destroyPool(&pRenderer->poolComputePipelines);
@@ -1047,13 +1054,17 @@ void waitForCommands(Renderer* pRenderer)
     vkDeviceWaitIdle(pRenderer->mVkDevice);
 }
 
-void acquireNextImage(Renderer* pRenderer, uint32 frame)
+void advanceFrame(Renderer* pRenderer, uint32 frame)
+{
+    ASSERT(pRenderer);
+    pRenderer->mActiveFrame = frame % CONCURRENT_FRAMES;
+}
+
+void acquireNextImage(Renderer* pRenderer)
 {
     ASSERT(pRenderer);
 
-    pRenderer->mActiveFrame = frame % CONCURRENT_FRAMES;
-    
-    VkSemaphore vkPresentSemaphore = pRenderer->mVkPresentSemaphores[pRenderer->mActiveFrame];
+    VkSemaphore vkPresentSemaphore = pRenderer->mVkImageAcquiredSemaphores[pRenderer->mActiveFrame];
     VkResult ret = vkAcquireNextImageKHR(pRenderer->mVkDevice, 
             pRenderer->mSwapChain.mVkSwapChain, 
             MAX_UINT64, 
@@ -1068,7 +1079,7 @@ void present(Renderer* pRenderer)
     ASSERT(pRenderer);
     ASSERT(pRenderer->mSwapChain.mVkImageLayouts[pRenderer->mSwapChain.mActiveImage] == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
-    VkSemaphore vkRenderSemaphore = pRenderer->mVkRenderSemaphores[pRenderer->mActiveFrame];
+    VkSemaphore vkRenderSemaphore = pRenderer->mVkRenderFinishedSemaphores[pRenderer->mSwapChain.mActiveImage];
     VkPresentInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     info.swapchainCount = 1;
@@ -1358,53 +1369,64 @@ void cmdBindComputePipeline(CommandBuffer* pCmd, ComputePipeline* pPipeline)
     vkCmdBindPipeline(pCmd->mVkCmd, VK_PIPELINE_BIND_POINT_COMPUTE, pPipeline->mVkPipeline);
 }
 
-void cmdBindDescriptorSet(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        DescriptorSet* pDescriptorSet, uint32 setBinding)
+// This function should be called once per frame, as per the bindless resource model
+void cmdBindResources(CommandBuffer* pCmd, Renderer* pRenderer)
 {
-    ASSERT(pCmd && pPipeline && pDescriptorSet);
+    ASSERT(pCmd && pRenderer);
+    VkPipelineLayout vkLayout = pRenderer->mResourceSet.mVkPipelineBindingLayout;
+    ASSERT(vkLayout != VK_NULL_HANDLE);
+
     vkCmdBindDescriptorSets(pCmd->mVkCmd, 
-            VK_PIPELINE_BIND_POINT_GRAPHICS, 
-            pPipeline->mVkLayout, 
-            setBinding, 
-            1, &pDescriptorSet->mVkSet, 
-            0, NULL);
-}
+        VK_PIPELINE_BIND_POINT_GRAPHICS, 
+        vkLayout, 
+        0, 1,
+        &pRenderer->mResourceSet.mVkSet, 
+        0, NULL);
 
-void cmdBindDescriptorSet(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        DescriptorSet* pDescriptorSet, uint32 setBinding)
-{
-    ASSERT(pCmd && pPipeline && pDescriptorSet);
     vkCmdBindDescriptorSets(pCmd->mVkCmd, 
-            VK_PIPELINE_BIND_POINT_COMPUTE, 
-            pPipeline->mVkLayout, 
-            setBinding, 
-            1, &pDescriptorSet->mVkSet, 
-            0, NULL);
+        VK_PIPELINE_BIND_POINT_COMPUTE, 
+        vkLayout, 
+        0, 1,
+        &pRenderer->mResourceSet.mVkSet, 
+        0, NULL);
 }
 
-
-void cmdSetConstants(CommandBuffer* pCmd, GraphicsPipeline* pPipeline,
-        uint32 constant, uint64 size, void* pData)
+void cmdResetShaderConstants(CommandBuffer* pCmd)
 {
-    ASSERT(pCmd && pPipeline && size && pData);
-    ASSERT(constant <= pPipeline->mDesc.mConstantBlockCount);
-    vkCmdPushConstants(pCmd->mVkCmd,
-            pPipeline->mVkLayout,
-            pPipeline->mDesc.mConstantBlocks[constant].mShaderTypes,
-            0, size,
-            pData);
+    ASSERT(pCmd);
+    pCmd->mShaderConstantSize = 0;
 }
 
-void cmdSetConstants(CommandBuffer* pCmd, ComputePipeline* pPipeline,
-        uint32 constant, uint64 size, void* pData)
+void cmdPushShaderConstant(CommandBuffer* pCmd, uint32 value)
 {
-    ASSERT(pCmd && pPipeline && size && pData);
-    ASSERT(constant <= pPipeline->mDesc.mConstantBlockCount);
+    ASSERT(pCmd);
+    ASSERT(pCmd->mShaderConstantSize + sizeof(uint32) <= MAX_SHADER_CONSTANT_SIZE);
+    uint32* pOffset = (uint32*)PTR_OFFSET(&pCmd->mShaderConstantData[0], pCmd->mShaderConstantSize);
+    *pOffset = value;
+    pCmd->mShaderConstantSize += sizeof(uint32);
+}
+
+void cmdPushShaderConstant(CommandBuffer* pCmd, uint64 value)
+{
+    ASSERT(pCmd);
+    ASSERT(pCmd->mShaderConstantSize + sizeof(uint64) <= MAX_SHADER_CONSTANT_SIZE);
+    uint64* pOffset = (uint64*)PTR_OFFSET(&pCmd->mShaderConstantData[0], pCmd->mShaderConstantSize);
+    *pOffset = value;
+    pCmd->mShaderConstantSize += sizeof(uint64);
+}
+
+void cmdSetShaderConstants(CommandBuffer* pCmd, Renderer* pRenderer)
+{
+    ASSERT(pCmd && pRenderer);
+
+    VkPipelineLayout vkLayout = pRenderer->mResourceSet.mVkPipelineBindingLayout;
+    ASSERT(vkLayout != VK_NULL_HANDLE);
+
     vkCmdPushConstants(pCmd->mVkCmd,
-            pPipeline->mVkLayout,
-            pPipeline->mDesc.mConstantBlocks[constant].mShaderTypes,
-            0, size,
-            pData);
+            vkLayout,
+            VK_SHADER_STAGE_ALL,
+            0, MAX_SHADER_CONSTANT_SIZE,
+            pCmd->mShaderConstantData);
 }
 
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h)

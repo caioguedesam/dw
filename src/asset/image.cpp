@@ -8,7 +8,7 @@
 #include "../render/render.hpp"
 #include "../render/resource_manager.hpp"
 
-void loadTexture(AssetManager* pAssetManager, ResourceManager<Texture>* pResMan, String path, 
+void loadTexture(AssetManager* pAssetManager, ResourceManager* pResMan, String path, 
         uint32 format, bool flipVertical, Texture** ppOut)
 {
     ASSERT(pAssetManager && pResMan && ppOut);

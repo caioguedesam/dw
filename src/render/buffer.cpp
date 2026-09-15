@@ -1,6 +1,8 @@
 #include "buffer.hpp"
 #include "render.hpp"
 #include "../core/debug.hpp"
+#include "src/render/descriptor.hpp"
+#include "vulkan/vulkan_core.h"
 
 void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pSrc)
 {
@@ -17,10 +19,18 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
     info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     info.size = desc.mSize;
     info.usage = (VkBufferUsageFlags)desc.mType;
+    info.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;    // For referencing buffer address in shaders
 
+    uint64 alignment = desc.mAlign;
+    if(alignment == 0)
+    {
+        alignment = getBufferAlignment(pRenderer, desc);
+    }
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;   // TODO_DW: Revise this
+    //allocInfo.minAlignment = desc.mAlign;
+    allocInfo.minAlignment = alignment;
 
     VkBuffer vkBuffer;
     VmaAllocation vkAlloc;
@@ -36,6 +46,11 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
     (*ppBuffer)->mDesc = desc;
     (*ppBuffer)->mVkBuffer = vkBuffer;
     (*ppBuffer)->mVkAllocation = vkAlloc;
+
+    VkBufferDeviceAddressInfo vkAddrInfo = {};
+    vkAddrInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    vkAddrInfo.buffer = vkBuffer;
+    (*ppBuffer)->mVkDeviceAddr = vkGetBufferDeviceAddress(pRenderer->mVkDevice, &vkAddrInfo);
 
     if(pSrc)
     {
@@ -59,10 +74,35 @@ void removeBuffer(Renderer* pRenderer, Buffer** ppBuffer)
     *ppBuffer = NULL;
 }
 
-uint32 getBufferAlignment(Renderer* pRenderer, Buffer* pBuffer)
+HND getHandle(Buffer* pBuffer)
 {
-    ASSERT(pRenderer && pBuffer);
-    switch(pBuffer->mDesc.mType)
+    ASSERT(pBuffer && pBuffer->mGPUHandle != HND_INVALID);
+    return pBuffer->mGPUHandle;
+}
+
+uint64 getBufferAddress(Buffer* pBuffer)
+{
+    ASSERT(pBuffer && pBuffer->mGPUHandle != HND_INVALID);
+    return pBuffer->mVkDeviceAddr;
+}
+
+void* mapBufferMemory(Renderer* pRenderer, Buffer* pBuffer)
+{
+    void* result;
+    VkResult ret = vmaMapMemory(pRenderer->mVkAllocator, pBuffer->mVkAllocation, &result);
+    ASSERTVK(ret);
+    return result;
+}
+
+void unmapBufferMemory(Renderer* pRenderer, Buffer* pBuffer)
+{
+    vmaUnmapMemory(pRenderer->mVkAllocator, pBuffer->mVkAllocation);
+}
+
+uint32 getBufferAlignment(Renderer* pRenderer, BufferDesc bufferDesc)
+{
+    ASSERT(pRenderer);
+    switch(bufferDesc.mType)
     {
         case BUFFER_TYPE_UNIFORM:
             return pRenderer->mVkDeviceProperties.limits.minUniformBufferOffsetAlignment;
@@ -76,13 +116,8 @@ void copyToBuffer(Renderer* pRenderer, Buffer* pDst, uint64 dstOffset, void* src
 {
     ASSERT(pRenderer && pDst && srcData);
     
-    uint32 align = getBufferAlignment(pRenderer, pDst);
-    ASSERT(srcSize % align == 0);
-
-    void* pMapping = NULL;
-    VkResult ret = vmaMapMemory(pRenderer->mVkAllocator, pDst->mVkAllocation, &pMapping);
-    ASSERTVK(ret);
+    void* pMapping = mapBufferMemory(pRenderer, pDst);
     void* pStart = (void*)((uint64)pMapping + dstOffset);
     memcpy(pStart, srcData, srcSize);
-    vmaUnmapMemory(pRenderer->mVkAllocator, pDst->mVkAllocation);
+    unmapBufferMemory(pRenderer, pDst);
 }

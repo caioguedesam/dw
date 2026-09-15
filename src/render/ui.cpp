@@ -197,7 +197,7 @@ void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint3
     }
     else
     {
-        vkDescriptorSet = pUI->mVkDescriptors[pTexture];
+        vkDescriptorSet = pUI->mVkDescriptors.getValue(pTexture);
     }
     ImGui::Image((ImTextureID)vkDescriptorSet, ImVec2(w, h));
 }

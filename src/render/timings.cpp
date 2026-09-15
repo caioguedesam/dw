@@ -182,23 +182,32 @@ void uiGpuTimingsGetPlotData(GpuTimestamp* pTimestamp, float* pX, float* pY, uin
     }
 }
 
-void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h)
+void uiGpuTimings(
+    Arena* pScratchArena,
+    GpuTimer* pGpuTimer)
 {
+    ASSERT(pScratchArena);
     ASSERT(pGpuTimer);
 
     ARENA_CHECKPOINT_SET(pScratchArena, gpuTimingsUI);
 
-    uiStartWindow(str("GPU Timings"), x, y, w, h);
-    GpuTimestamp* pLastTimestamp = &pGpuTimer->mTimestamps[0];
     GpuTimestamp* pCurrentTimestamp = NULL;
 
     static bool detailed = false;
     static float yMaxLimit = 100.f;
+
     uiCheckbox(str("Detailed"), &detailed);
+
     if(detailed)
     {
-        uiDragf(str("Y Scale (MS)"), &yMaxLimit, 1.f, 20.f, 200.f);
+        uiDragf(
+            str("Y Scale (MS)"),
+            &yMaxLimit,
+            1.f,
+            20.f,
+            200.f);
     }
+
     uiSeparator();
 
     for(uint32 i = 1; i < GPU_TIMER_MAX_TIMESTAMPS; i++)
@@ -213,41 +222,122 @@ void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, floa
 
         // Timing data
         String tsName = pGpuTimer->mTimestampNames[i];
-        String text = strf(pScratchArena, "[%s]: %.3f ms",
-                cstr(tsName),
-                ms);
+
+        String text = strf(
+            pScratchArena,
+            "[%s]: %.3f ms",
+            cstr(tsName),
+            ms);
+
         uiText(text);
 
-        // Detailed plot data (line plot with frame history, up to GPU_TIMER_MAX_HISTORY frames)
+        // Detailed plot data
         if(detailed)
         {
-
             float dataX[GPU_TIMER_MAX_HISTORY];
             float dataY[GPU_TIMER_MAX_HISTORY];
-            uiGpuTimingsGetPlotData(pCurrentTimestamp, dataX, dataY, GPU_TIMER_MAX_HISTORY);
+
+            uiGpuTimingsGetPlotData(
+                pCurrentTimestamp,
+                dataX,
+                dataY,
+                GPU_TIMER_MAX_HISTORY);
 
             char label[256];
-            strf(label, "##Plot(%s)", cstr(tsName));
+
+            strf(
+                label,
+                "##Plot(%s)",
+                cstr(tsName));
 
             UILinePlotDesc desc = {};
             desc.mShaded = true;
             desc.mSize = {-1, 150};
             desc.mMinLimit = {0, 0};
-            desc.mMaxLimit = {GPU_TIMER_MAX_HISTORY, yMaxLimit};
+            desc.mMaxLimit =
+                {GPU_TIMER_MAX_HISTORY, yMaxLimit};
+
             desc.mLinePointCount = GPU_TIMER_MAX_HISTORY;
             desc.mLineCount = 1;
+
             desc.mDataX[0] = dataX;
             desc.mDataY[0] = dataY;
 
             uiLinePlot(str(label), desc);
         }
 
-        pLastTimestamp = pCurrentTimestamp;
         uiSeparator();
     }
-    uiEndWindow();
 
     ARENA_CHECKPOINT_RESET(pScratchArena, gpuTimingsUI);
 }
+
+//-void uiGpuTimingsWindow(Arena* pScratchArena, GpuTimer* pGpuTimer, float x, float y, float w, float h)
+//-{
+//-    ASSERT(pGpuTimer);
+//-
+//-    ARENA_CHECKPOINT_SET(pScratchArena, gpuTimingsUI);
+//-
+//-    uiStartWindow(str("GPU Timings"), x, y, w, h);
+//-    GpuTimestamp* pLastTimestamp = &pGpuTimer->mTimestamps[0];
+//-    GpuTimestamp* pCurrentTimestamp = NULL;
+//-
+//-    static bool detailed = false;
+//-    static float yMaxLimit = 100.f;
+//-    uiCheckbox(str("Detailed"), &detailed);
+//-    if(detailed)
+//-    {
+//-        uiDragf(str("Y Scale (MS)"), &yMaxLimit, 1.f, 20.f, 200.f);
+//-    }
+//-    uiSeparator();
+//-
+//-    for(uint32 i = 1; i < GPU_TIMER_MAX_TIMESTAMPS; i++)
+//-    {
+//-        pCurrentTimestamp = &pGpuTimer->mTimestamps[i];
+//-
+//-        double ms = getLastTimestampMS(pCurrentTimestamp);
+//-        if(ms == 0.0)
+//-        {
+//-            continue;
+//-        }
+//-
+//-        // Timing data
+//-        String tsName = pGpuTimer->mTimestampNames[i];
+//-        String text = strf(pScratchArena, "[%s]: %.3f ms",
+//-                cstr(tsName),
+//-                ms);
+//-        uiText(text);
+//-
+//-        // Detailed plot data (line plot with frame history, up to GPU_TIMER_MAX_HISTORY frames)
+//-        if(detailed)
+//-        {
+//-
+//-            float dataX[GPU_TIMER_MAX_HISTORY];
+//-            float dataY[GPU_TIMER_MAX_HISTORY];
+//-            uiGpuTimingsGetPlotData(pCurrentTimestamp, dataX, dataY, GPU_TIMER_MAX_HISTORY);
+//-
+//-            char label[256];
+//-            strf(label, "##Plot(%s)", cstr(tsName));
+//-
+//-            UILinePlotDesc desc = {};
+//-            desc.mShaded = true;
+//-            desc.mSize = {-1, 150};
+//-            desc.mMinLimit = {0, 0};
+//-            desc.mMaxLimit = {GPU_TIMER_MAX_HISTORY, yMaxLimit};
+//-            desc.mLinePointCount = GPU_TIMER_MAX_HISTORY;
+//-            desc.mLineCount = 1;
+//-            desc.mDataX[0] = dataX;
+//-            desc.mDataY[0] = dataY;
+//-
+//-            uiLinePlot(str(label), desc);
+//-        }
+//-
+//-        pLastTimestamp = pCurrentTimestamp;
+//-        uiSeparator();
+//-    }
+//-    uiEndWindow();
+//-
+//-    ARENA_CHECKPOINT_RESET(pScratchArena, gpuTimingsUI);
+//-}
 
 #endif
