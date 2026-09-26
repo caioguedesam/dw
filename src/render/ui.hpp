@@ -45,6 +45,7 @@ void uiText(String text);
 void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint32 h);
 bool uiButton(String label, uint32 w = 0, uint32 h = 0);
 void uiCheckbox(String label, bool* pOut);
+void uiCombo(String label, int* pOut, String* options, uint32 optionCount);
 void uiInputf(String label, float* pOut);
 void uiColor3f(String label, float* pOut);
 void uiColor4f(String label, float* pOut);

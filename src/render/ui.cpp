@@ -212,6 +212,18 @@ void uiCheckbox(String label, bool* pOut)
     ImGui::Checkbox(cstr(label), pOut);
 }
 
+#define UI_MAX_COMBO_OPTIONS 32
+void uiCombo(String label, int* pOut, String* options, uint32 optionCount)
+{
+    ASSERT(optionCount <= UI_MAX_COMBO_OPTIONS);
+    char* items[UI_MAX_COMBO_OPTIONS];
+    for(uint32 i = 0; i < optionCount; i++)
+    {
+        items[i] = cstr(options[i]);
+    }
+    ImGui::Combo(cstr(label), pOut, items, optionCount);
+}
+
 void uiInputf(String label, float* pOut)
 {
     ImGui::InputFloat(cstr(label), pOut);
