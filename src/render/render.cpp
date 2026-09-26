@@ -475,6 +475,7 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     // Depth/stencil state
     VkPipelineDepthStencilStateCreateInfo depthInfo = {};
     depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    if(desc.mDepthWrite) ASSERT(desc.mDepthTest);   // Depth writing can only be enabled when depth testing is enabled.
     depthInfo.depthTestEnable = desc.mDepthTest;
     depthInfo.depthWriteEnable = desc.mDepthWrite;
     depthInfo.depthCompareOp = (VkCompareOp)desc.mDepthOp;
