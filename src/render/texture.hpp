@@ -64,12 +64,19 @@ enum TextureUsage : uint32
     TEXTURE_USAGE_ANY          = VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM,
 };
 
+enum TextureFlags : uint32
+{
+    TEXTURE_FLAGS_NONE = 0,
+    TEXTURE_FLAGS_SEPARATE_LEVELS = BIT(1),
+};
+
 #define TEXTURE_MAX_MIP_COUNT 12
 struct TextureDesc
 {
     ImageFormat mFormat         = FORMAT_UNDEFINED;
     TextureType mType           = TEXTURE_TYPE_2D;
     uint32 mUsage               = TEXTURE_USAGE_ANY;
+    uint32 mFlags               = TEXTURE_FLAGS_NONE;
     ImageLayout mInitialLayout  = IMAGE_LAYOUT_UNDEFINED;
     ImageLayout mLayouts[TEXTURE_MAX_MIP_COUNT];
 

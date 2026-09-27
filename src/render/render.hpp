@@ -111,6 +111,12 @@ struct ClearValue
     float mDepth = 0;
 };
 
+enum RenderTargetFlags : uint32
+{
+    RENDER_TARGET_FLAGS_NONE = 0,
+    RENDER_TARGET_FLAGS_SEPARATE_LEVELS = BIT(1),
+};
+
 struct RenderTargetDesc
 {
     ImageFormat mFormat = FORMAT_UNDEFINED;
@@ -120,6 +126,7 @@ struct RenderTargetDesc
     uint32 mHeight  = 0;
     uint32 mSamples = 1;
     uint32 mMipCount = 1;
+    uint32 mFlags    = RENDER_TARGET_FLAGS_NONE;
 };
 
 struct RenderTarget
@@ -444,11 +451,10 @@ void cmdBindResources(CommandBuffer* pCmd, Renderer* pRenderer);
 void cmdResetShaderConstants(CommandBuffer* pCmd);
 void cmdPushShaderConstant(CommandBuffer* pCmd, uint32 value);
 void cmdPushShaderConstant(CommandBuffer* pCmd, uint64 value);
+void cmdPushShaderConstant(CommandBuffer* pCmd, float value);
 void cmdSetShaderConstants(CommandBuffer* pCmd, Renderer* pRenderer);
 void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h);
-void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h);
-void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer);
 void cmdDraw(CommandBuffer* pCmd, uint32 vertexCount, uint32 instanceCount);

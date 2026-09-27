@@ -79,6 +79,9 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
             NULL);
     ASSERTVK(ret);
 
+    // Make either a single view with all mip levels or one view per mip level
+    bool separateLevels = desc.mFlags & TEXTURE_FLAGS_SEPARATE_LEVELS;
+
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = vkImage;
@@ -89,7 +92,8 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
         ? VK_IMAGE_ASPECT_DEPTH_BIT
         : VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = desc.mMipCount;
+    //-viewInfo.subresourceRange.levelCount = desc.mMipCount;
+    viewInfo.subresourceRange.levelCount = separateLevels ? 1 : desc.mMipCount;
     viewInfo.subresourceRange.baseArrayLayer = 0;   // TODO(caio): TEXTURE_ARRAY
     viewInfo.subresourceRange.layerCount = 1;
 
@@ -113,32 +117,37 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     // Creating individual image views for every mip so they can be read or written to directly
     for(int32 i = 1; i < desc.mMipCount; i++)
     {
-        VkImageViewCreateInfo mipViewInfo = {};
-        mipViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        mipViewInfo.image = vkImage;
-        mipViewInfo.viewType = getVkImageViewType(desc.mType);
-        mipViewInfo.format = (VkFormat)desc.mFormat;
-        mipViewInfo.subresourceRange.aspectMask =
-            desc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
-            ? VK_IMAGE_ASPECT_DEPTH_BIT
-            : VK_IMAGE_ASPECT_COLOR_BIT;
-        mipViewInfo.subresourceRange.baseMipLevel = i;
-        mipViewInfo.subresourceRange.levelCount = 1;
-        mipViewInfo.subresourceRange.baseArrayLayer = 0;   // TODO(caio): TEXTURE_ARRAY
-        mipViewInfo.subresourceRange.layerCount = 1;
-
-        VkImageView vkMipImageView;
-        ret = vkCreateImageView(
-                pRenderer->mVkDevice,
-                &mipViewInfo,
-                NULL,
-                &vkMipImageView);
-        ASSERTVK(ret);
-
-        (*ppTexture)->mVkImageViews[i] = vkMipImageView;
         (*ppTexture)->mDesc.mLayouts[i] = desc.mInitialLayout;
         (*ppTexture)->mGPUHandles[i] = HND_INVALID;
         (*ppTexture)->mGPURWHandles[i] = HND_INVALID;
+        (*ppTexture)->mVkImageViews[i] = VK_NULL_HANDLE;
+
+        if(separateLevels)
+        {
+            VkImageViewCreateInfo mipViewInfo = {};
+            mipViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            mipViewInfo.image = vkImage;
+            mipViewInfo.viewType = getVkImageViewType(desc.mType);
+            mipViewInfo.format = (VkFormat)desc.mFormat;
+            mipViewInfo.subresourceRange.aspectMask =
+                desc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
+                ? VK_IMAGE_ASPECT_DEPTH_BIT
+                : VK_IMAGE_ASPECT_COLOR_BIT;
+            mipViewInfo.subresourceRange.baseMipLevel = i;
+            mipViewInfo.subresourceRange.levelCount = 1;
+            mipViewInfo.subresourceRange.baseArrayLayer = 0;   // TODO(caio): TEXTURE_ARRAY
+            mipViewInfo.subresourceRange.layerCount = 1;
+
+            VkImageView vkMipImageView;
+            ret = vkCreateImageView(
+                    pRenderer->mVkDevice,
+                    &mipViewInfo,
+                    NULL,
+                    &vkMipImageView);
+            ASSERTVK(ret);
+
+            (*ppTexture)->mVkImageViews[i] = vkMipImageView;
+        }
     }
 }
 
@@ -149,10 +158,13 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
 
     for(int32 i = 0; i < (*ppTexture)->mDesc.mMipCount; i++)
     {
-        vkDestroyImageView(
-                pRenderer->mVkDevice, 
-                (*ppTexture)->mVkImageViews[i], 
-                NULL);
+        if((*ppTexture)->mVkImageViews[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyImageView(
+                    pRenderer->mVkDevice, 
+                    (*ppTexture)->mVkImageViews[i], 
+                    NULL);
+        }
     }
     vmaDestroyImage(
             pRenderer->mVkAllocator, 

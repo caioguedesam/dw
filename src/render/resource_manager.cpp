@@ -36,9 +36,10 @@ void registerTexture(ResourceManager* pResMan, TextureDesc desc, Texture* pTextu
     TextureResource res = {};
     res.pTexture = pTexture;
     // All texture mips sampled then all mips storage
+    uint32 mipHandleCount = desc.mFlags & TEXTURE_FLAGS_SEPARATE_LEVELS ? desc.mMipCount : 1;
     if(desc.mUsage & TEXTURE_USAGE_SAMPLED)
     {
-        for(uint32 i = 0; i < desc.mMipCount; i++)
+        for(uint32 i = 0; i < mipHandleCount; i++)
         {
             res.mMipLevel = i;
             HND handle = addToResourceArray(&pResMan->mTextures, res);
@@ -47,7 +48,7 @@ void registerTexture(ResourceManager* pResMan, TextureDesc desc, Texture* pTextu
     }
     if(desc.mUsage & TEXTURE_USAGE_STORAGE)
     {
-        for(uint32 i = 0; i < desc.mMipCount; i++)
+        for(uint32 i = 0; i < mipHandleCount; i++)
         {
             res.mMipLevel = i;
             HND handle = addToResourceArray(&pResMan->mTextures, res);
@@ -58,16 +59,17 @@ void registerTexture(ResourceManager* pResMan, TextureDesc desc, Texture* pTextu
 
 void unregisterTexture(ResourceManager* pResMan, Texture* pTexture)
 {
+    uint32 mipHandleCount = pTexture->mDesc.mFlags & TEXTURE_FLAGS_SEPARATE_LEVELS ? pTexture->mDesc.mMipCount : 1;
     if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
     {
-        for(int32 i = 0; i < pTexture->mDesc.mMipCount; i++)
+        for(int32 i = 0; i < mipHandleCount; i++)
         {
             removeFromResourceArray(&pResMan->mTextures, pTexture->mGPUHandles[i]);
         }
     }
     if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
     {
-        for(int32 i = 0; i < pTexture->mDesc.mMipCount; i++)
+        for(int32 i = 0; i < mipHandleCount; i++)
         {
             removeFromResourceArray(&pResMan->mTextures, pTexture->mGPURWHandles[i]);
         } 

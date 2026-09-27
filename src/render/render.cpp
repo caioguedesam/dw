@@ -241,6 +241,11 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
     textureDesc.mDepth = 1;
     textureDesc.mMipCount = desc.mMipCount;
     textureDesc.mSamples = desc.mSamples;
+    textureDesc.mFlags = TEXTURE_FLAGS_NONE;
+    if(desc.mFlags & RENDER_TARGET_FLAGS_SEPARATE_LEVELS)
+    {
+        textureDesc.mFlags |= TEXTURE_FLAGS_SEPARATE_LEVELS;
+    }
     Texture* pTexture = NULL;
     addTexture(pRenderer, textureDesc, &pTexture);
     ASSERT(pTexture);
@@ -278,6 +283,11 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
     textureDesc.mDepth = 1;
     textureDesc.mMipCount = desc.mMipCount;
     textureDesc.mSamples = desc.mSamples;
+    textureDesc.mFlags = TEXTURE_FLAGS_NONE;
+    if(desc.mFlags & RENDER_TARGET_FLAGS_SEPARATE_LEVELS)
+    {
+        textureDesc.mFlags |= TEXTURE_FLAGS_SEPARATE_LEVELS;
+    }
     Texture* pTexture = NULL;
     addTexture(pRenderer, textureDesc, &pTexture);
     ASSERT(pTexture);
@@ -1360,6 +1370,9 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
     info.pStencilAttachment = NULL;     // TODO_DW: Stencil
     
     vkCmdBeginRendering(pCmd->mVkCmd, &info);
+
+    cmdSetViewport(pCmd, 0, 0, targetExtent[0], targetExtent[1]);
+    cmdSetScissor(pCmd, 0, 0, targetExtent[0], targetExtent[1]);
 }
 
 void cmdUnbindRenderTargets(CommandBuffer* pCmd)
@@ -1426,6 +1439,15 @@ void cmdPushShaderConstant(CommandBuffer* pCmd, uint64 value)
     pCmd->mShaderConstantSize += sizeof(uint64);
 }
 
+void cmdPushShaderConstant(CommandBuffer* pCmd, float value)
+{
+    ASSERT(pCmd);
+    ASSERT(pCmd->mShaderConstantSize + sizeof(float) <= MAX_SHADER_CONSTANT_SIZE);
+    float* pOffset = (float*)PTR_OFFSET(&pCmd->mShaderConstantData[0], pCmd->mShaderConstantSize);
+    *pOffset = value;
+    pCmd->mShaderConstantSize += sizeof(float);
+}
+
 void cmdSetShaderConstants(CommandBuffer* pCmd, Renderer* pRenderer)
 {
     ASSERT(pCmd && pRenderer);
@@ -1453,11 +1475,6 @@ void cmdSetViewport(CommandBuffer* pCmd, float x, float y, float w, float h)
     vkCmdSetViewport(pCmd->mVkCmd, 0, 1, &vkViewport);
 }
 
-void cmdSetViewport(CommandBuffer* pCmd, RenderTarget* pTarget)
-{
-    cmdSetViewport(pCmd, 0, 0, pTarget->mDesc.mWidth, pTarget->mDesc.mHeight);
-}
-
 void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h)
 {
     ASSERT(pCmd);
@@ -1465,11 +1482,6 @@ void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h)
     rect.offset = {x, y};
     rect.extent = {w, h};
     vkCmdSetScissor(pCmd->mVkCmd, 0, 1, &rect);
-}
-
-void cmdSetScissor(CommandBuffer* pCmd, RenderTarget* pTarget)
-{
-    cmdSetScissor(pCmd, 0, 0, pTarget->mDesc.mWidth, pTarget->mDesc.mHeight);
 }
 
 void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
