@@ -43,6 +43,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
 {
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture == NULL);
+    ASSERT(desc.mMipCount <= TEXTURE_MAX_MIP_COUNT);
 
     *ppTexture = (Texture*)poolAlloc(&pRenderer->poolTextures);
 
@@ -52,7 +53,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     info.usage = desc.mUsage;
     info.format = (VkFormat)desc.mFormat;
-    info.initialLayout = (VkImageLayout)desc.mBaseLayout;
+    info.initialLayout = (VkImageLayout)desc.mInitialLayout;
     info.imageType = getVkImageType(desc.mType);
     info.extent.width = desc.mWidth;
     info.extent.height = desc.mHeight;
@@ -89,7 +90,7 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
         : VK_IMAGE_ASPECT_COLOR_BIT;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = desc.mMipCount;
-    viewInfo.subresourceRange.baseArrayLayer = 0;   // TODO_DW: TEXTURE_ARRAY
+    viewInfo.subresourceRange.baseArrayLayer = 0;   // TODO(caio): TEXTURE_ARRAY
     viewInfo.subresourceRange.layerCount = 1;
 
     VkImageView vkImageView;
@@ -101,12 +102,44 @@ void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture)
     ASSERTVK(ret);
 
     (*ppTexture)->mDesc = desc;
+    (*ppTexture)->mDesc.mLayouts[0] = desc.mInitialLayout;
     (*ppTexture)->mVkImage = vkImage;
-    (*ppTexture)->mVkImageView = vkImageView;
+    (*ppTexture)->mVkImageViews[0] = vkImageView;
     (*ppTexture)->mVkAllocation = vkAlloc;
     (*ppTexture)->mVkCreateInfo = viewInfo;
+    (*ppTexture)->mGPUHandles[0] = HND_INVALID;
+    (*ppTexture)->mGPURWHandles[0] = HND_INVALID;
 
-    // TODO_DW: Generate texture mipmap based on params
+    // Creating individual image views for every mip so they can be read or written to directly
+    for(int32 i = 1; i < desc.mMipCount; i++)
+    {
+        VkImageViewCreateInfo mipViewInfo = {};
+        mipViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        mipViewInfo.image = vkImage;
+        mipViewInfo.viewType = getVkImageViewType(desc.mType);
+        mipViewInfo.format = (VkFormat)desc.mFormat;
+        mipViewInfo.subresourceRange.aspectMask =
+            desc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
+            ? VK_IMAGE_ASPECT_DEPTH_BIT
+            : VK_IMAGE_ASPECT_COLOR_BIT;
+        mipViewInfo.subresourceRange.baseMipLevel = i;
+        mipViewInfo.subresourceRange.levelCount = 1;
+        mipViewInfo.subresourceRange.baseArrayLayer = 0;   // TODO(caio): TEXTURE_ARRAY
+        mipViewInfo.subresourceRange.layerCount = 1;
+
+        VkImageView vkMipImageView;
+        ret = vkCreateImageView(
+                pRenderer->mVkDevice,
+                &mipViewInfo,
+                NULL,
+                &vkMipImageView);
+        ASSERTVK(ret);
+
+        (*ppTexture)->mVkImageViews[i] = vkMipImageView;
+        (*ppTexture)->mDesc.mLayouts[i] = desc.mInitialLayout;
+        (*ppTexture)->mGPUHandles[i] = HND_INVALID;
+        (*ppTexture)->mGPURWHandles[i] = HND_INVALID;
+    }
 }
 
 void removeTexture(Renderer* pRenderer, Texture** ppTexture)
@@ -114,10 +147,13 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
     ASSERT(pRenderer && ppTexture);
     ASSERT(*ppTexture);
 
-    vkDestroyImageView(
-            pRenderer->mVkDevice, 
-            (*ppTexture)->mVkImageView, 
-            NULL);
+    for(int32 i = 0; i < (*ppTexture)->mDesc.mMipCount; i++)
+    {
+        vkDestroyImageView(
+                pRenderer->mVkDevice, 
+                (*ppTexture)->mVkImageViews[i], 
+                NULL);
+    }
     vmaDestroyImage(
             pRenderer->mVkAllocator, 
             (*ppTexture)->mVkImage, 
@@ -129,16 +165,16 @@ void removeTexture(Renderer* pRenderer, Texture** ppTexture)
     *ppTexture = NULL;
 }
 
-HND getHandle(Texture* pTexture)
+HND getHandle(Texture* pTexture, uint32 mipLevel)
 {
-    ASSERT(pTexture && pTexture->mGPUHandle != HND_INVALID);
-    return pTexture->mGPUHandle;
+    ASSERT(pTexture && mipLevel < pTexture->mDesc.mMipCount && pTexture->mGPUHandles[mipLevel] != HND_INVALID);
+    return pTexture->mGPUHandles[mipLevel];
 }
 
-HND getRWHandle(Texture* pTexture)
+HND getRWHandle(Texture* pTexture, uint32 mipLevel)
 {
-    ASSERT(pTexture && pTexture->mGPURWHandle != HND_INVALID);
-    return pTexture->mGPURWHandle;
+    ASSERT(pTexture && mipLevel < pTexture->mDesc.mMipCount && pTexture->mGPURWHandles[mipLevel] != HND_INVALID);
+    return pTexture->mGPURWHandles[mipLevel];
 }
 
 void addSampler(Renderer* pRenderer, SamplerDesc desc, Sampler** ppSampler)
@@ -229,21 +265,15 @@ bool isFormatReadWrite(Renderer* pRenderer, ImageFormat format)
 void cmdGenerateMipmap(CommandBuffer* pCmd, Texture* pTexture, SamplerFilter mipFilter)
 {
     // Texture format must support linear blit (can be queried with VkPhysicalDeviceProperties)
-    
-    // Change all mips to TRANSFER_DST
     TextureBarrier barrier = {};
     barrier.pTexture = pTexture;
-    barrier.mOldLayout = pTexture->mDesc.mBaseLayout;
-    barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_DST;
-    barrier.mStartMip = 0;
-    barrier.mMipCount = pTexture->mDesc.mMipCount;
-    cmdTextureBarrier(pCmd, 1, &barrier);
 
     // For each mip, blit from past level
     int32 mipWidth = pTexture->mDesc.mWidth;
     int32 mipHeight = pTexture->mDesc.mHeight;
     for(uint32 i = 1; i < pTexture->mDesc.mMipCount; i++)
     {
+        ASSERT(pTexture->mDesc.mLayouts[i] == IMAGE_LAYOUT_TRANSFER_DST);
         // Transition past mip to TRANSFER_SRC
         barrier.mOldLayout = IMAGE_LAYOUT_TRANSFER_DST;
         barrier.mNewLayout = IMAGE_LAYOUT_TRANSFER_SRC;

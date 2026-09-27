@@ -182,16 +182,17 @@ void uiText(String text)
     ImGui::Text("%s", cstr(text));
 }
 
-void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint32 h)
+void uiImage(UIState* pUI, Texture* pTexture, Sampler* pSampler, uint32 w, uint32 h, uint32 mipLevel)
 {
     ASSERT(pUI);
+    ASSERT(pTexture && mipLevel < pTexture->mDesc.mMipCount);
     VkDescriptorSet vkDescriptorSet;
     if(!pUI->mVkDescriptors.contains(pTexture))
     {
         // TODO_DW: This technically should be using a single hash
         // for both textures and samplers.
         vkDescriptorSet = ImGui_ImplVulkan_AddTexture(pSampler->vkSampler, 
-                pTexture->mVkImageView, 
+                pTexture->mVkImageViews[mipLevel], 
                 (VkImageLayout)IMAGE_LAYOUT_SHADER_READ_ONLY);
         pUI->mVkDescriptors.insert(pTexture, vkDescriptorSet);
     }

@@ -4,44 +4,14 @@
 #include "../render/buffer.hpp"
 #include "src/core/memory.hpp"
 
-ResourceArray createResourceArray(Arena* pArena, ResourceType type, uint64 capacity)
-{
-    ResourceArray arr = {};
-    arr.mType = type;
-    arr.mResources = array<void*>(pArena, capacity);
-    arr.mFreeList = array<uint32>(pArena, capacity);
-    return arr;
-}
-
-HND addToResourceArray(ResourceArray* pArray, void* pResource)
-{
-    if(pArray->mFreeList.mCount)
-    {
-        HND freeIdx = pArray->mFreeList.top();
-        pArray->mFreeList.pop();
-        pArray->mResources[freeIdx] = pResource;
-        return freeIdx;
-    }
-    pArray->mResources.push(pResource);
-    return (HND)(pArray->mResources.mCount - 1);
-}
-
-void removeFromResourceArray(ResourceArray* pArray, HND handle)
-{
-    // Textures have two separate entries
-    ASSERT(handle < pArray->mResources.mCount);
-    pArray->mResources[handle] = NULL;
-    pArray->mFreeList.push(handle);
-}
-
 void initResourceManager(Renderer* pRenderer, Arena* pArena, ResourceManager* pResMan)
 {
     ASSERT(pRenderer && pArena && pResMan);
     *pResMan = {};
     pResMan->pRenderer  = pRenderer;
-    pResMan->mBuffers   = createResourceArray(pArena, RESOURCE_TYPE_BUFFER,  MAX_BUFFERS);
-    pResMan->mTextures  = createResourceArray(pArena, RESOURCE_TYPE_TEXTURE, MAX_TEXTURES);
-    pResMan->mSamplers  = createResourceArray(pArena, RESOURCE_TYPE_SAMPLER, MAX_SAMPLERS);
+    pResMan->mBuffers   = createResourceArray<Buffer*>(pArena, RESOURCE_TYPE_BUFFER,  MAX_BUFFERS);
+    pResMan->mTextures  = createResourceArray<TextureResource>(pArena, RESOURCE_TYPE_TEXTURE, MAX_TEXTURES);
+    pResMan->mSamplers  = createResourceArray<Sampler*>(pArena, RESOURCE_TYPE_SAMPLER, MAX_SAMPLERS);
 }
 
 void initBuffer(ResourceManager* pResMan, BufferDesc desc, Buffer** ppBuffer, void* pSrc)
@@ -61,6 +31,49 @@ void destroyBuffer(ResourceManager* pResMan, Buffer** ppBuffer)
     removeBuffer(pResMan->pRenderer, ppBuffer);
 }
 
+void registerTexture(ResourceManager* pResMan, TextureDesc desc, Texture* pTexture)
+{
+    TextureResource res = {};
+    res.pTexture = pTexture;
+    // All texture mips sampled then all mips storage
+    if(desc.mUsage & TEXTURE_USAGE_SAMPLED)
+    {
+        for(uint32 i = 0; i < desc.mMipCount; i++)
+        {
+            res.mMipLevel = i;
+            HND handle = addToResourceArray(&pResMan->mTextures, res);
+            pTexture->mGPUHandles[i] = handle;
+        }
+    }
+    if(desc.mUsage & TEXTURE_USAGE_STORAGE)
+    {
+        for(uint32 i = 0; i < desc.mMipCount; i++)
+        {
+            res.mMipLevel = i;
+            HND handle = addToResourceArray(&pResMan->mTextures, res);
+            pTexture->mGPURWHandles[i] = handle;
+        }
+    }
+}
+
+void unregisterTexture(ResourceManager* pResMan, Texture* pTexture)
+{
+    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
+    {
+        for(int32 i = 0; i < pTexture->mDesc.mMipCount; i++)
+        {
+            removeFromResourceArray(&pResMan->mTextures, pTexture->mGPUHandles[i]);
+        }
+    }
+    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
+    {
+        for(int32 i = 0; i < pTexture->mDesc.mMipCount; i++)
+        {
+            removeFromResourceArray(&pResMan->mTextures, pTexture->mGPURWHandles[i]);
+        } 
+    }
+}
+
 void initTexture(ResourceManager* pResMan, TextureDesc desc, Texture** ppTexture)
 {
     ASSERT(pResMan && ppTexture);
@@ -69,16 +82,7 @@ void initTexture(ResourceManager* pResMan, TextureDesc desc, Texture** ppTexture
     Texture* pTexture = *ppTexture;
     ASSERT(pTexture);
 
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
-    {
-        HND handle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPUHandle = handle;
-    }
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
-    {
-        HND rwhandle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPURWHandle = rwhandle;
-    }
+    registerTexture(pResMan, desc, pTexture);
 }
 
 void destroyTexture(ResourceManager* pResMan, Texture** ppTexture)
@@ -88,14 +92,7 @@ void destroyTexture(ResourceManager* pResMan, Texture** ppTexture)
     Texture* pTexture = *ppTexture;
     ASSERT(pTexture);
 
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
-    {
-        removeFromResourceArray(&pResMan->mTextures, pTexture->mGPUHandle);
-    }
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
-    {
-        removeFromResourceArray(&pResMan->mTextures, pTexture->mGPURWHandle);
-    }
+    unregisterTexture(pResMan, pTexture);
 
     removeTexture(pResMan->pRenderer, ppTexture);
 }
@@ -125,16 +122,7 @@ void initRenderTarget(ResourceManager* pResMan, RenderTargetDesc desc, RenderTar
     Texture* pTexture = (*ppTarget)->pTexture;
     ASSERT(pTexture);
 
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
-    {
-        HND handle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPUHandle = handle;
-    }
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
-    {
-        HND rwhandle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPURWHandle = rwhandle;
-    }
+    registerTexture(pResMan, pTexture->mDesc, pTexture);
 }
 
 void initDepthTarget(ResourceManager* pResMan, RenderTargetDesc desc, RenderTarget** ppTarget)
@@ -146,16 +134,7 @@ void initDepthTarget(ResourceManager* pResMan, RenderTargetDesc desc, RenderTarg
     Texture* pTexture = (*ppTarget)->pTexture;
     ASSERT(pTexture);
 
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
-    {
-        HND handle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPUHandle = handle;
-    }
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
-    {
-        HND rwhandle = addToResourceArray(&pResMan->mTextures, pTexture);
-        pTexture->mGPURWHandle = rwhandle;
-    } 
+    registerTexture(pResMan, pTexture->mDesc, pTexture);
 }
 
 void destroyRenderTarget(ResourceManager* pResMan, RenderTarget** ppTarget)
@@ -165,14 +144,7 @@ void destroyRenderTarget(ResourceManager* pResMan, RenderTarget** ppTarget)
     Texture* pTexture = (*ppTarget)->pTexture;
     ASSERT(pTexture);
 
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_SAMPLED)
-    {
-        removeFromResourceArray(&pResMan->mTextures, pTexture->mGPUHandle);
-    }
-    if(pTexture->mDesc.mUsage & TEXTURE_USAGE_STORAGE)
-    {
-        removeFromResourceArray(&pResMan->mTextures, pTexture->mGPURWHandle);
-    }
+    unregisterTexture(pResMan, pTexture);
 
     removeRenderTarget(pResMan->pRenderer, ppTarget);
 }
@@ -203,7 +175,7 @@ void setResources(ResourceManager* pResMan, Arena* pArena)
             bufferAddresses.mData, bufferCount * sizeof(uint32*));
 
     initResourceSet(pResMan->pRenderer, 
-            (Texture**)pResMan->mTextures.mResources.mData, pResMan->mTextures.mResources.mCount, 
+            (TextureResource*)pResMan->mTextures.mResources.mData, pResMan->mTextures.mResources.mCount, 
             (Sampler**)pResMan->mSamplers.mResources.mData, pResMan->mSamplers.mResources.mCount, 
             pResMan->pGlobalAddrBuffer);
 

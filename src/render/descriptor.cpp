@@ -8,7 +8,7 @@
 #include "vulkan/vulkan_core.h"
 
 void initResourceSet(Renderer* pRenderer, 
-        Texture** ppTextures, uint32 textureCount,
+        TextureResource* pTexResources, uint32 textureCount,
         Sampler** ppSamplers, uint32 samplerCount,
         Buffer* pAddrBuffer)
 {
@@ -141,7 +141,6 @@ void initResourceSet(Renderer* pRenderer,
     cursor++;
 
     // Writing all textures to descriptor set (each texture is written once for each type)
-    //VkWriteDescriptorSet vkImageDescWrites[textureTypeCount];
     for(uint32 type = 0; type < textureTypeCount; type++)
     {
         VkWriteDescriptorSet vkImageDescWrite = {};
@@ -157,20 +156,16 @@ void initResourceSet(Renderer* pRenderer,
         VkDescriptorImageInfo vkImageInfos[textureCount];
         for(uint32 i = 0; i < textureCount; i++)
         {
-            //Texture* pTexture = &pTextures[i];
-            Texture* pTexture = ppTextures[i];
-
-            if(!pTexture || !(pTexture->mDesc.mUsage & typeUsage))
+            TextureResource res = pTexResources[i];
+            if(!res.pTexture || !(res.pTexture->mDesc.mUsage & typeUsage))
             {
                 // Resort to fallback 0 if null or the texture is not of the correct type for the binding.
                 // Fallback 0 must be both sampled and storage.
-                pTexture = ppTextures[0];
-                ASSERT(pTexture);
+                res = pTexResources[0];
             }
-
             vkImageInfos[i] = {};
-            vkImageInfos[i].imageView = pTexture->mVkImageView;
-            vkImageInfos[i].imageLayout = (VkImageLayout)pTexture->mDesc.mBaseLayout;
+            vkImageInfos[i].imageView = res.pTexture->mVkImageViews[res.mMipLevel];
+            vkImageInfos[i].imageLayout = (VkImageLayout)res.pTexture->mDesc.mLayouts[res.mMipLevel];
             vkImageInfos[i].sampler = VK_NULL_HANDLE;
         }
 

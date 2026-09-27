@@ -32,7 +32,7 @@ void loadTexture(AssetManager* pAssetManager, ResourceManager* pResMan, String p
     desc.mMipCount = getMaxMipCount(width, height);
     desc.mType = TEXTURE_TYPE_2D;
     desc.mFormat = (ImageFormat)format;
-    desc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;
+    desc.mInitialLayout = IMAGE_LAYOUT_UNDEFINED;
     desc.mUsage = TEXTURE_USAGE_SAMPLED
         | TEXTURE_USAGE_TRANSFER_SRC
         | TEXTURE_USAGE_TRANSFER_DST;
@@ -42,7 +42,7 @@ void loadTexture(AssetManager* pAssetManager, ResourceManager* pResMan, String p
     Renderer* pRenderer = pResMan->pRenderer;
     CommandBuffer* pCmd = getCmd(pRenderer, true);
     beginCmd(pCmd);
-    // Transition texture to TRANSFER_DST
+
     TextureBarrier barrier = { *ppOut, IMAGE_LAYOUT_UNDEFINED, IMAGE_LAYOUT_TRANSFER_DST };
     cmdTextureBarrier(pCmd, 1, &barrier);
 

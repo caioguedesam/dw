@@ -64,12 +64,14 @@ enum TextureUsage : uint32
     TEXTURE_USAGE_ANY          = VK_IMAGE_USAGE_FLAG_BITS_MAX_ENUM,
 };
 
+#define TEXTURE_MAX_MIP_COUNT 12
 struct TextureDesc
 {
     ImageFormat mFormat         = FORMAT_UNDEFINED;
-    ImageLayout mBaseLayout     = IMAGE_LAYOUT_UNDEFINED;
     TextureType mType           = TEXTURE_TYPE_2D;
     uint32 mUsage               = TEXTURE_USAGE_ANY;
+    ImageLayout mInitialLayout  = IMAGE_LAYOUT_UNDEFINED;
+    ImageLayout mLayouts[TEXTURE_MAX_MIP_COUNT];
 
     uint32 mWidth       = 0;
     uint32 mHeight      = 0;
@@ -80,22 +82,21 @@ struct TextureDesc
 
 struct Texture
 {
-    //HND mHandle = HND_INVALID;
     TextureDesc mDesc = {};
 
     VkImage         mVkImage        = VK_NULL_HANDLE;
-    VkImageView     mVkImageView    = VK_NULL_HANDLE;
     VmaAllocation   mVkAllocation   = VK_NULL_HANDLE;
     VkImageViewCreateInfo mVkCreateInfo = {};
+    VkImageView mVkImageViews[TEXTURE_MAX_MIP_COUNT];
 
-    HND mGPUHandle = HND_INVALID;
-    HND mGPURWHandle = HND_INVALID;
+    HND mGPUHandles[TEXTURE_MAX_MIP_COUNT];
+    HND mGPURWHandles[TEXTURE_MAX_MIP_COUNT];
 };
 
 void addTexture(Renderer* pRenderer, TextureDesc desc, Texture** ppTexture);
 void removeTexture(Renderer* pRenderer, Texture** ppTexture);
-HND getHandle(Texture* pTexture);
-HND getRWHandle(Texture* pTexture);
+HND getHandle(Texture* pTexture, uint32 mipLevel = 0);
+HND getRWHandle(Texture* pTexture, uint32 mipLevel = 0);
 
 uint32 getMaxMipCount(uint32 w, uint32 h);
 

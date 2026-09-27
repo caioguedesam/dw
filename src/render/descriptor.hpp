@@ -18,6 +18,12 @@ struct Buffer;
 #define MAX_TEXTURE_DESCRIPTORS 4096
 #define MAX_SAMPLER_DESCRIPTORS 256
 
+struct TextureResource
+{
+    Texture* pTexture = NULL;
+    uint32 mMipLevel = 0;
+};
+
 struct ResourceSet
 {
     VkDescriptorSetLayout mVkLayout = VK_NULL_HANDLE;
@@ -27,7 +33,7 @@ struct ResourceSet
 };
 
 void initResourceSet(Renderer* pRenderer, 
-        Texture** ppTextures, uint32 textureCount,
+        TextureResource* pTexResources, uint32 textureCount,
         Sampler** ppSamplers, uint32 samplerCount,
         Buffer* pAddrBuffer);
 void destroyResourceSet(Renderer* pRenderer);

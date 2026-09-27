@@ -233,13 +233,13 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
 
     TextureDesc textureDesc = {};
     textureDesc.mFormat = desc.mFormat;
-    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
+    textureDesc.mInitialLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
     textureDesc.mType = TEXTURE_TYPE_2D;
     textureDesc.mUsage = usage;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
-    textureDesc.mMipCount = 1;
+    textureDesc.mMipCount = desc.mMipCount;
     textureDesc.mSamples = desc.mSamples;
     Texture* pTexture = NULL;
     addTexture(pRenderer, textureDesc, &pTexture);
@@ -270,13 +270,13 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
 
     TextureDesc textureDesc = {};
     textureDesc.mFormat = desc.mFormat;
-    textureDesc.mBaseLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
+    textureDesc.mInitialLayout = IMAGE_LAYOUT_UNDEFINED;   // Must be transitioned before using.
     textureDesc.mType = TEXTURE_TYPE_2D;
     textureDesc.mUsage = usage;
     textureDesc.mWidth = desc.mWidth;
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
-    textureDesc.mMipCount = 1;
+    textureDesc.mMipCount = desc.mMipCount;
     textureDesc.mSamples = desc.mSamples;
     Texture* pTexture = NULL;
     addTexture(pRenderer, textureDesc, &pTexture);
@@ -302,24 +302,31 @@ void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget)
     *ppTarget = NULL;
 }
 
-HND getHandle(RenderTarget* pTarget)
+void getTargetSize(RenderTarget* pTarget, uint32* pOut, uint32 mipLevel)
 {
-    ASSERT(pTarget && pTarget->pTexture);
-    ASSERT(pTarget->pTexture->mGPUHandle != HND_INVALID);
-    return pTarget->pTexture->mGPUHandle;
+    ASSERT(pTarget && pOut && mipLevel < pTarget->mDesc.mMipCount);
+    pOut[0] = MAX(1, pTarget->mDesc.mWidth >> mipLevel);
+    pOut[1] = MAX(1, pTarget->mDesc.mHeight >> mipLevel);
 }
 
-HND getRWHandle(RenderTarget* pTarget)
+HND getHandle(RenderTarget* pTarget, uint32 mipLevel)
 {
-    ASSERT(pTarget && pTarget->pTexture);
-    ASSERT(pTarget->pTexture->mGPURWHandle != HND_INVALID);
-    return pTarget->pTexture->mGPURWHandle;
+    ASSERT(pTarget && mipLevel < pTarget->mDesc.mMipCount && pTarget->pTexture);
+    ASSERT(pTarget->pTexture->mGPUHandles[mipLevel] != HND_INVALID);
+    return pTarget->pTexture->mGPUHandles[mipLevel];
 }
 
-ImageLayout getImageLayout(RenderTarget* pTarget)
+HND getRWHandle(RenderTarget* pTarget, uint32 mipLevel)
+{
+    ASSERT(pTarget && mipLevel < pTarget->mDesc.mMipCount && pTarget->pTexture);
+    ASSERT(pTarget->pTexture->mGPURWHandles[mipLevel] != HND_INVALID);
+    return pTarget->pTexture->mGPURWHandles[mipLevel];
+}
+
+ImageLayout getImageLayout(RenderTarget* pTarget, uint32 mipLevel)
 {
     ASSERT(pTarget);
-    return pTarget->pTexture->mDesc.mBaseLayout;
+    return pTarget->pTexture->mDesc.mLayouts[mipLevel];
 }
 
 void initVertexLayout(VertexLayoutDesc desc, VertexLayout* pLayout)
@@ -1133,17 +1140,13 @@ void cmdTextureBarrier(CommandBuffer* pCmd, uint32 barrierCount, TextureBarrier*
             pBarriers[i].pTexture->mDesc.mUsage & TEXTURE_USAGE_DEPTH_TARGET
             ? VK_IMAGE_ASPECT_DEPTH_BIT
             : VK_IMAGE_ASPECT_COLOR_BIT;
-        // Transition all mips by default.
-        if(pBarriers[i].mMipCount == 0)
-        {
-            vkBarrier.subresourceRange.baseMipLevel = 0;
-            vkBarrier.subresourceRange.levelCount = pBarriers[i].pTexture->mDesc.mMipCount;
-        }
-        else
-        {
-            vkBarrier.subresourceRange.baseMipLevel = pBarriers[i].mStartMip;
-            vkBarrier.subresourceRange.levelCount = pBarriers[i].mMipCount;
-        }
+        uint32 barrierStartMip = pBarriers[i].mStartMip;
+        uint32 barrierMipCount = (pBarriers[i].mMipCount == 0)
+            ? pBarriers[i].pTexture->mDesc.mMipCount
+            : pBarriers[i].mMipCount;
+        vkBarrier.subresourceRange.baseMipLevel = barrierStartMip;
+        vkBarrier.subresourceRange.levelCount = barrierMipCount;
+
         vkBarrier.subresourceRange.baseArrayLayer = 0;      // TODO_DW: Texture array
         vkBarrier.subresourceRange.layerCount = 1;
 
@@ -1155,9 +1158,10 @@ void cmdTextureBarrier(CommandBuffer* pCmd, uint32 barrierCount, TextureBarrier*
                 0, NULL, 
                 1, &vkBarrier);
 
-        if(pBarriers[i].mStartMip == 0)
+        for(uint32 level = 0; level < barrierMipCount; level++)
         {
-            pBarriers[i].pTexture->mDesc.mBaseLayout = pBarriers[i].mNewLayout;
+            ASSERT(pBarriers[i].pTexture->mDesc.mLayouts[barrierStartMip + level] == pBarriers[i].mOldLayout);
+            pBarriers[i].pTexture->mDesc.mLayouts[barrierStartMip + level] = pBarriers[i].mNewLayout;
         }
     }
     
@@ -1175,7 +1179,8 @@ void cmdRenderTargetBarrier(CommandBuffer* pCmd, uint32 barrierCount, RenderTarg
             pBarriers[i].pTarget->pTexture,
             pBarriers[i].mOldLayout,
             pBarriers[i].mNewLayout, 
-            0, 1,
+            pBarriers[i].mStartMip,
+            pBarriers[i].mMipCount,
             pBarriers[i].mSrcStage,
             pBarriers[i].mDstStage,
             pBarriers[i].mSrcAccess,
@@ -1281,15 +1286,7 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
 {
     ASSERT(pCmd);
 
-    RenderTargetDesc mainRTDesc = {};
-    if(desc.mColorCount)
-    {
-        mainRTDesc = desc.mColorBindings[0].pTarget->mDesc;
-    }
-    else
-    {
-        mainRTDesc = desc.mDepthBinding.pTarget->mDesc;
-    }
+    // TODO(caio): Maybe I should pass an additional extents parameter instead of polling directly from the binding.
 
     VkRenderingAttachmentInfo attachmentInfo[MAX_PIPELINE_RENDER_TARGETS];
     VkRenderingAttachmentInfo depthAttachmentInfo = {};
@@ -1305,10 +1302,12 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
             binding.pTarget->mDesc.mClear.mColor[3]
         };
 
+        ASSERT(binding.mMipLevel < binding.pTarget->mDesc.mMipCount);
+
         attachmentInfo[i] = {};
         attachmentInfo[i].sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        attachmentInfo[i].imageView = binding.pTarget->pTexture->mVkImageView;
-        attachmentInfo[i].imageLayout = (VkImageLayout)binding.pTarget->pTexture->mDesc.mBaseLayout;
+        attachmentInfo[i].imageView = binding.pTarget->pTexture->mVkImageViews[binding.mMipLevel];
+        attachmentInfo[i].imageLayout = (VkImageLayout)binding.pTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
         attachmentInfo[i].loadOp = (VkAttachmentLoadOp)binding.mLoadOp;
         attachmentInfo[i].storeOp = (VkAttachmentStoreOp)binding.mStoreOp;
         attachmentInfo[i].clearValue = vkClear;
@@ -1316,9 +1315,18 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
 
     VkRect2D renderArea = {};
     renderArea.offset = {0, 0};
+    uint32 targetExtent[2] = {0, 0};
+    if(desc.mColorCount)
+    {
+        getTargetSize(desc.mColorBindings[0].pTarget, targetExtent, desc.mColorBindings[0].mMipLevel);
+    }
+    else
+    {
+        getTargetSize(desc.mDepthBinding.pTarget, targetExtent, desc.mDepthBinding.mMipLevel);
+    }
     renderArea.extent = {
-        mainRTDesc.mWidth,
-        mainRTDesc.mHeight
+        targetExtent[0],
+        targetExtent[1]
     };
 
     VkRenderingInfo info = {};
@@ -1333,10 +1341,12 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
         vkClear.depthStencil.depth = desc.mDepthBinding.pTarget->mDesc.mClear.mDepth;
         vkClear.depthStencil.stencil = 0;
 
+        ASSERT(desc.mDepthBinding.mMipLevel < desc.mDepthBinding.pTarget->mDesc.mMipCount);
+
         depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachmentInfo.imageView = desc.mDepthBinding.pTarget->pTexture->mVkImageView;
+        depthAttachmentInfo.imageView = desc.mDepthBinding.pTarget->pTexture->mVkImageViews[desc.mDepthBinding.mMipLevel];
         depthAttachmentInfo.imageLayout = 
-            (VkImageLayout)desc.mDepthBinding.pTarget->pTexture->mDesc.mBaseLayout;
+            (VkImageLayout)desc.mDepthBinding.pTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];
         depthAttachmentInfo.loadOp = (VkAttachmentLoadOp)desc.mDepthBinding.mLoadOp;
         depthAttachmentInfo.storeOp = (VkAttachmentStoreOp)desc.mDepthBinding.mStoreOp;
         depthAttachmentInfo.clearValue = vkClear;
@@ -1560,7 +1570,7 @@ void cmdCopyToSwapChain(CommandBuffer* pCmd, SwapChain* pSwapChain, Texture* pSr
 
     vkCmdBlitImage(pCmd->mVkCmd, 
             pSrc->mVkImage, 
-            (VkImageLayout)pSrc->mDesc.mBaseLayout, 
+            (VkImageLayout)pSrc->mDesc.mLayouts[0], 
             pSwapChain->mVkImages[pSwapChain->mActiveImage], 
             pSwapChain->mVkImageLayouts[pSwapChain->mActiveImage], 
             1, &blitRegion, 

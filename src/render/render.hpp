@@ -80,6 +80,8 @@ struct RenderTargetBarrier
     RenderTarget*   pTarget     = NULL;
     ImageLayout     mOldLayout  = IMAGE_LAYOUT_UNDEFINED;
     ImageLayout     mNewLayout  = IMAGE_LAYOUT_UNDEFINED;
+    uint32          mStartMip   = 0;
+    uint32          mMipCount   = 0;
 
     PipelineStage   mSrcStage   = PIPELINE_STAGE_ALL;
     PipelineStage   mDstStage   = PIPELINE_STAGE_ALL;
@@ -117,6 +119,7 @@ struct RenderTargetDesc
     uint32 mWidth   = 0;
     uint32 mHeight  = 0;
     uint32 mSamples = 1;
+    uint32 mMipCount = 1;
 };
 
 struct RenderTarget
@@ -128,16 +131,18 @@ struct RenderTarget
 void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
-HND getHandle(RenderTarget* pTarget);
-HND getRWHandle(RenderTarget* pTarget);
+void getTargetSize(RenderTarget* pTarget, uint32* pOut, uint32 mipLevel = 0);
+HND getHandle(RenderTarget* pTarget, uint32 mipLevel = 0);
+HND getRWHandle(RenderTarget* pTarget, uint32 mipLevel = 0);
 
-ImageLayout getImageLayout(RenderTarget* pTarget);
+ImageLayout getImageLayout(RenderTarget* pTarget, uint32 mipLevel = 0);
 
 struct RenderTargetBinding
 {
     RenderTarget* pTarget   = NULL;
     LoadOp mLoadOp          = LOAD_OP_LOAD;
     StoreOp mStoreOp        = STORE_OP_STORE;
+    uint32 mMipLevel        = 0;
 };
 
 #define MAX_PIPELINE_RENDER_TARGETS 8

@@ -8,6 +8,7 @@ struct Renderer;
 struct RenderTargetDesc;
 struct RenderTarget;
 struct ResourceSet;
+struct TextureResource;
 
 struct TextureHandle
 {
@@ -22,23 +23,50 @@ enum ResourceType
     RESOURCE_TYPE_SAMPLER,
 };
 
+template<typename T>
 struct ResourceArray
 {
     ResourceType    mType;
-    Array<void*>    mResources = {};
+    Array<T>        mResources = {};
     Array<HND>      mFreeList = {};
 };
-ResourceArray createResourceArray(Arena* pArena, ResourceType type, uint64 capacity);
-HND addToResourceArray(ResourceArray* pArray, void* pResource);
-void removeFromResourceArray(ResourceArray* pArray, HND handle);
+template<typename T>
+ResourceArray<T> createResourceArray(Arena* pArena, ResourceType type, uint64 capacity)
+{
+    ResourceArray<T> arr = {};
+    arr.mType = type;
+    arr.mResources = array<T>(pArena, capacity);
+    arr.mFreeList = array<uint32>(pArena, capacity);
+    return arr;
+}
+template<typename T>
+HND addToResourceArray(ResourceArray<T>* pArray, T resource)
+{
+    if(pArray->mFreeList.mCount)
+    {
+        HND freeIdx = pArray->mFreeList.top();
+        pArray->mFreeList.pop();
+        pArray->mResources[freeIdx] = resource;
+        return freeIdx;
+    }
+    pArray->mResources.push(resource);
+    return (HND)(pArray->mResources.mCount - 1);
+}
+template<typename T>
+void removeFromResourceArray(ResourceArray<T>* pArray, HND handle)
+{
+    ASSERT(handle < pArray->mResources.mCount);
+    pArray->mResources[handle] = {};
+    pArray->mFreeList.push(handle);
+}
 
 struct ResourceManager
 {
     Renderer* pRenderer = NULL;
 
-    ResourceArray mBuffers;
-    ResourceArray mTextures;
-    ResourceArray mSamplers;
+    ResourceArray<Buffer*> mBuffers;
+    ResourceArray<TextureResource> mTextures;
+    ResourceArray<Sampler*> mSamplers;
 
     Buffer* pGlobalAddrBuffer = NULL;
     bool mResourceSetInitialized = false;
