@@ -240,7 +240,7 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
     textureDesc.mMipCount = desc.mMipCount;
-    textureDesc.mSamples = desc.mSamples;
+    textureDesc.mSamples = desc.mSampleCount;
     textureDesc.mFlags = TEXTURE_FLAGS_NONE;
     if(desc.mFlags & RENDER_TARGET_FLAGS_SEPARATE_LEVELS)
     {
@@ -282,7 +282,7 @@ void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** p
     textureDesc.mHeight = desc.mHeight;
     textureDesc.mDepth = 1;
     textureDesc.mMipCount = desc.mMipCount;
-    textureDesc.mSamples = desc.mSamples;
+    textureDesc.mSamples = desc.mSampleCount;
     textureDesc.mFlags = TEXTURE_FLAGS_NONE;
     if(desc.mFlags & RENDER_TARGET_FLAGS_SEPARATE_LEVELS)
     {
@@ -486,8 +486,9 @@ void addPipeline(Renderer* pRenderer, GraphicsPipelineDesc desc, GraphicsPipelin
     // TODO(caio): Support multisampling, currently only fixed 1 sample for all pipelines
     VkPipelineMultisampleStateCreateInfo msInfo = {};
     msInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    msInfo.sampleShadingEnable = VK_FALSE;
-    msInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    msInfo.sampleShadingEnable = desc.mSampleCount > 1 ? VK_TRUE : VK_FALSE;
+    msInfo.minSampleShading = .2f;
+    msInfo.rasterizationSamples = (VkSampleCountFlagBits)desc.mSampleCount;
 
     // Depth/stencil state
     VkPipelineDepthStencilStateCreateInfo depthInfo = {};
@@ -891,11 +892,13 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         features11.pNext = &features12;
 
         VkPhysicalDeviceFeatures features = {};
+        features.sampleRateShading = VK_TRUE;
         features.samplerAnisotropy = VK_TRUE;
         features.fillModeNonSolid = VK_TRUE;
         features.wideLines = VK_TRUE;
         features.shaderStorageImageReadWithoutFormat = VK_TRUE;
         features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+        features.shaderStorageImageMultisample = VK_TRUE;
 
         VkDeviceCreateInfo deviceInfo = {};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -1320,6 +1323,12 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
         attachmentInfo[i].imageLayout = (VkImageLayout)binding.pTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
         attachmentInfo[i].loadOp = (VkAttachmentLoadOp)binding.mLoadOp;
         attachmentInfo[i].storeOp = (VkAttachmentStoreOp)binding.mStoreOp;
+        if(binding.pResolveTarget)
+        {
+            attachmentInfo[i].resolveImageView = binding.pResolveTarget->pTexture->mVkImageViews[binding.mMipLevel];
+            attachmentInfo[i].resolveImageLayout = (VkImageLayout)binding.pResolveTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
+            attachmentInfo[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;    // TODO(caio): Add different modes when needed.
+        }
         attachmentInfo[i].clearValue = vkClear;
     }
 
@@ -1359,6 +1368,12 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
             (VkImageLayout)desc.mDepthBinding.pTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];
         depthAttachmentInfo.loadOp = (VkAttachmentLoadOp)desc.mDepthBinding.mLoadOp;
         depthAttachmentInfo.storeOp = (VkAttachmentStoreOp)desc.mDepthBinding.mStoreOp;
+        if(desc.mDepthBinding.pResolveTarget)
+        {
+            depthAttachmentInfo.resolveImageView = desc.mDepthBinding.pResolveTarget->pTexture->mVkImageViews[desc.mDepthBinding.mMipLevel];
+            depthAttachmentInfo.resolveImageLayout = (VkImageLayout)desc.mDepthBinding.pResolveTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];
+            depthAttachmentInfo.resolveMode = VK_RESOLVE_MODE_MIN_BIT;    // TODO(caio): Add different modes when needed.
+        }
         depthAttachmentInfo.clearValue = vkClear;
 
         info.pDepthAttachment = &depthAttachmentInfo;

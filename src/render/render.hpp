@@ -122,11 +122,11 @@ struct RenderTargetDesc
     ImageFormat mFormat = FORMAT_UNDEFINED;
     ClearValue mClear = {};
 
-    uint32 mWidth   = 0;
-    uint32 mHeight  = 0;
-    uint32 mSamples = 1;
-    uint32 mMipCount = 1;
-    uint32 mFlags    = RENDER_TARGET_FLAGS_NONE;
+    uint32 mWidth       = 0;
+    uint32 mHeight      = 0;
+    uint32 mSampleCount = 1;
+    uint32 mMipCount    = 1;
+    uint32 mFlags       = RENDER_TARGET_FLAGS_NONE;
 };
 
 struct RenderTarget
@@ -146,10 +146,11 @@ ImageLayout getImageLayout(RenderTarget* pTarget, uint32 mipLevel = 0);
 
 struct RenderTargetBinding
 {
-    RenderTarget* pTarget   = NULL;
-    LoadOp mLoadOp          = LOAD_OP_LOAD;
-    StoreOp mStoreOp        = STORE_OP_STORE;
-    uint32 mMipLevel        = 0;
+    RenderTarget* pTarget           = NULL;
+    LoadOp mLoadOp                  = LOAD_OP_LOAD;
+    StoreOp mStoreOp                = STORE_OP_STORE;
+    uint32 mMipLevel                = 0;
+    RenderTarget* pResolveTarget    = NULL;
 };
 
 #define MAX_PIPELINE_RENDER_TARGETS 8
@@ -304,6 +305,9 @@ struct GraphicsPipelineDesc
     CullMode mCullMode          = CULL_MODE_NONE;
     FrontFace mFrontFace        = FRONT_FACE_CCW;
     float mLineWidth            = 1.f;
+
+    // Multisample state
+    uint32 mSampleCount         = 1;
 
     // Depth state
     bool mDepthTest = false;
