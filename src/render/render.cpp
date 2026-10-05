@@ -319,6 +319,12 @@ void getTargetSize(RenderTarget* pTarget, uint32* pOut, uint32 mipLevel)
     pOut[1] = MAX(1, pTarget->mDesc.mHeight >> mipLevel);
 }
 
+bool isTargetMultisampled(RenderTarget* pTarget)
+{
+    ASSERT(pTarget);
+    return pTarget->mDesc.mSampleCount > 1;
+}
+
 HND getHandle(RenderTarget* pTarget, uint32 mipLevel)
 {
     ASSERT(pTarget && mipLevel < pTarget->mDesc.mMipCount && pTarget->pTexture);
@@ -1323,7 +1329,7 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
         attachmentInfo[i].imageLayout = (VkImageLayout)binding.pTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
         attachmentInfo[i].loadOp = (VkAttachmentLoadOp)binding.mLoadOp;
         attachmentInfo[i].storeOp = (VkAttachmentStoreOp)binding.mStoreOp;
-        if(binding.pResolveTarget)
+        if(binding.pResolveTarget && isTargetMultisampled(binding.pTarget))
         {
             attachmentInfo[i].resolveImageView = binding.pResolveTarget->pTexture->mVkImageViews[binding.mMipLevel];
             attachmentInfo[i].resolveImageLayout = (VkImageLayout)binding.pResolveTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
@@ -1368,7 +1374,7 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
             (VkImageLayout)desc.mDepthBinding.pTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];
         depthAttachmentInfo.loadOp = (VkAttachmentLoadOp)desc.mDepthBinding.mLoadOp;
         depthAttachmentInfo.storeOp = (VkAttachmentStoreOp)desc.mDepthBinding.mStoreOp;
-        if(desc.mDepthBinding.pResolveTarget)
+        if(desc.mDepthBinding.pResolveTarget && isTargetMultisampled(desc.mDepthBinding.pTarget))
         {
             depthAttachmentInfo.resolveImageView = desc.mDepthBinding.pResolveTarget->pTexture->mVkImageViews[desc.mDepthBinding.mMipLevel];
             depthAttachmentInfo.resolveImageLayout = (VkImageLayout)desc.mDepthBinding.pResolveTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];

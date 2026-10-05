@@ -139,6 +139,7 @@ void addRenderTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** 
 void addDepthTarget(Renderer* pRenderer, RenderTargetDesc desc, RenderTarget** ppTarget);
 void removeRenderTarget(Renderer* pRenderer, RenderTarget** ppTarget);
 void getTargetSize(RenderTarget* pTarget, uint32* pOut, uint32 mipLevel = 0);
+bool isTargetMultisampled(RenderTarget* pTarget);
 HND getHandle(RenderTarget* pTarget, uint32 mipLevel = 0);
 HND getRWHandle(RenderTarget* pTarget, uint32 mipLevel = 0);
 
