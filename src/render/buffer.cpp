@@ -4,7 +4,7 @@
 #include "src/render/descriptor.hpp"
 #include "vulkan/vulkan_core.h"
 
-void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pSrc)
+void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pSrc, uint64 srcSize)
 {
     ASSERT(pRenderer && ppBuffer);
     ASSERT(*ppBuffer == NULL);
@@ -28,7 +28,11 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
     }
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;   // TODO_DW: Revise this
+    allocInfo.flags = 0;
+    if(desc.mFlags & BUFFER_FLAGS_HOST_MAPPED)
+    {
+        allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    }
     //allocInfo.minAlignment = desc.mAlign;
     allocInfo.minAlignment = alignment;
 
@@ -54,7 +58,26 @@ void addBuffer(Renderer* pRenderer, BufferDesc desc, Buffer** ppBuffer, void* pS
 
     if(pSrc)
     {
-        copyToBuffer(pRenderer, *ppBuffer, 0, pSrc, desc.mSize);
+        uint64 copySize = srcSize == 0 ? desc.mSize : srcSize;
+        if(desc.mFlags & BUFFER_FLAGS_HOST_MAPPED)
+        {
+            copyHostDataToBuffer(pRenderer, *ppBuffer, 0, pSrc, copySize);
+        }
+        else
+        {
+            // Copy first to staging buffer, then to device local buffer.
+            // Data must fit within the staging buffer limits.
+            ASSERT(desc.mSize < pRenderer->pStagingBuffer->mDesc.mSize);
+            copyHostDataToBuffer(pRenderer, pRenderer->pStagingBuffer, 0, pSrc, copySize);
+
+            CommandBuffer* pCmd = getCmd(pRenderer, COMMAND_BUFFER_TYPE_IMMEDIATE);
+            beginCmd(pCmd);
+
+            cmdCopyBuffer(pCmd, pRenderer->pStagingBuffer, *ppBuffer, 0, copySize, 0);
+
+            endCmd(pCmd);
+            submitImmediateCmd(pRenderer, pCmd);
+        }
     }
 }
 
@@ -88,6 +111,7 @@ uint64 getBufferAddress(Buffer* pBuffer)
 
 void* mapBufferMemory(Renderer* pRenderer, Buffer* pBuffer)
 {
+    ASSERT(pBuffer && pBuffer->mDesc.mFlags & BUFFER_FLAGS_HOST_MAPPED);
     void* result;
     VkResult ret = vmaMapMemory(pRenderer->mVkAllocator, pBuffer->mVkAllocation, &result);
     ASSERTVK(ret);
@@ -96,6 +120,7 @@ void* mapBufferMemory(Renderer* pRenderer, Buffer* pBuffer)
 
 void unmapBufferMemory(Renderer* pRenderer, Buffer* pBuffer)
 {
+    ASSERT(pBuffer && pBuffer->mDesc.mFlags & BUFFER_FLAGS_HOST_MAPPED);
     vmaUnmapMemory(pRenderer->mVkAllocator, pBuffer->mVkAllocation);
 }
 
@@ -112,7 +137,7 @@ uint32 getBufferAlignment(Renderer* pRenderer, BufferDesc bufferDesc)
     }
 }
 
-void copyToBuffer(Renderer* pRenderer, Buffer* pDst, uint64 dstOffset, void* srcData, uint64 srcSize)
+void copyHostDataToBuffer(Renderer* pRenderer, Buffer* pDst, uint64 dstOffset, void* srcData, uint64 srcSize)
 {
     ASSERT(pRenderer && pDst && srcData);
     
@@ -120,4 +145,17 @@ void copyToBuffer(Renderer* pRenderer, Buffer* pDst, uint64 dstOffset, void* src
     void* pStart = (void*)((uint64)pMapping + dstOffset);
     memcpy(pStart, srcData, srcSize);
     unmapBufferMemory(pRenderer, pDst);
+}
+
+void cmdCopyBuffer(CommandBuffer* pCmd, Buffer* pSrc, Buffer* pDst,
+        uint64 srcOffset, uint64 srcSize, uint64 dstOffset)
+{
+    ASSERT(pCmd && pSrc && pDst && srcSize);
+
+    VkBufferCopy vkCopy = {};
+    vkCopy.srcOffset = srcOffset;
+    vkCopy.dstOffset = dstOffset;
+    vkCopy.size = srcSize;
+
+    vkCmdCopyBuffer(pCmd->mVkCmd, pSrc->mVkBuffer, pDst->mVkBuffer, 1, &vkCopy);
 }

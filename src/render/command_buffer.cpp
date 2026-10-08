@@ -3,6 +3,14 @@
 #include "../core/debug.hpp"
 #include "vulkan/vulkan_core.h"
 
+#define COMMAND_BUFFER_DEBUG 0
+
+#if COMMAND_BUFFER_DEBUG
+#define COMMAND_BUFFER_LOG(FMT, ...) LOGLF("COMMAND_BUFFER", FMT, __VA_ARGS__)
+#else
+#define COMMAND_BUFFER_LOG(FMT, ...)
+#endif
+
 void initCommandBuffers(Renderer* pRenderer)
 {
     ASSERT(pRenderer);
@@ -34,10 +42,10 @@ void initCommandBuffers(Renderer* pRenderer)
     }
 }
 
-CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
+CommandBuffer* getCmd(Renderer* pRenderer, CommandBufferType type)
 {
     VkFence fence;
-    if(immediate)
+    if(type == COMMAND_BUFFER_TYPE_IMMEDIATE)
     {
         // Immediate command buffers already wait right after submit
         fence = pRenderer->mVkImmediateFence;
@@ -58,6 +66,7 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
         CommandBuffer* pCmd = &pRenderer->mCommandBuffers[i];
         if(pCmd->mState == COMMAND_BUFFER_IDLE)
         {
+            COMMAND_BUFFER_LOG("getCmd (%p) from IDLE", pCmd->mVkCmd);
             pOutCmd = pCmd;
             break;
         }
@@ -75,12 +84,14 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
                 VkResult ret = vkGetFenceStatus(pRenderer->mVkDevice, pCmd->mVkFence);
                 if(ret == VK_SUCCESS)
                 {
+                    COMMAND_BUFFER_LOG("getCmd (%p) from SUBMITTED", pCmd->mVkCmd);
                     pOutCmd = pCmd;
                     break;
                 }
             }
         }
     }
+    ASSERT(pOutCmd);
 
     VkResult ret = vkResetCommandBuffer(pOutCmd->mVkCmd, 0);
     ASSERTVK(ret);
@@ -88,8 +99,8 @@ CommandBuffer* getCmd(Renderer* pRenderer, bool immediate)
     ret = vkResetFences(pRenderer->mVkDevice, 1, &pOutCmd->mVkFence);
     ASSERTVK(ret);
     pOutCmd->mState = COMMAND_BUFFER_IDLE;
+    COMMAND_BUFFER_LOG("(%p) is IDLE", pOutCmd->mVkCmd);
 
-    ASSERT(pOutCmd);
     return pOutCmd;
 }
 
@@ -104,6 +115,7 @@ void beginCmd(CommandBuffer* pCmd)
     ASSERTVK(ret);
 
     pCmd->mState = COMMAND_BUFFER_RECORDING;
+    COMMAND_BUFFER_LOG("(%p) is RECORDING", pCmd->mVkCmd);
 }
 
 void endCmd(CommandBuffer* pCmd)
@@ -114,6 +126,7 @@ void endCmd(CommandBuffer* pCmd)
     ASSERTVK(ret);
 
     pCmd->mState = COMMAND_BUFFER_READY;
+    COMMAND_BUFFER_LOG("(%p) is READY", pCmd->mVkCmd);
 }
 
 void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd)
@@ -143,6 +156,7 @@ void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd)
     ASSERTVK(ret);
 
     pCmd->mState = COMMAND_BUFFER_SUBMITTED;
+    COMMAND_BUFFER_LOG("(%p) is SUBMITTED (frame)", pCmd->mVkCmd);
 }
 
 void submitImmediateCmd(Renderer* pRenderer, CommandBuffer* pCmd)
@@ -157,9 +171,12 @@ void submitImmediateCmd(Renderer* pRenderer, CommandBuffer* pCmd)
 
     VkResult ret = vkQueueSubmit(pRenderer->mVkQueue, 1, &info, pCmd->mVkFence);
     ASSERTVK(ret);
+    COMMAND_BUFFER_LOG("(%p) is SUBMITTED (immediate)", pCmd->mVkCmd);
 
     pCmd->mState = COMMAND_BUFFER_SUBMITTED;
 
     ret = vkWaitForFences(pRenderer->mVkDevice, 1, &pCmd->mVkFence, VK_TRUE, MAX_UINT64);
     ASSERTVK(ret);
+
+    COMMAND_BUFFER_LOG("(%p) fence signaled (immediate)", pCmd->mVkCmd);
 }

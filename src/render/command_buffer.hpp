@@ -5,13 +5,19 @@
 
 struct Renderer;
 
-enum CommandBufferState
+enum CommandBufferState : uint32
 {
     COMMAND_BUFFER_INVALID = 0,
     COMMAND_BUFFER_IDLE,
     COMMAND_BUFFER_RECORDING,
     COMMAND_BUFFER_READY,
     COMMAND_BUFFER_SUBMITTED,
+};
+
+enum CommandBufferType : uint32
+{
+    COMMAND_BUFFER_TYPE_FRAME = 0,
+    COMMAND_BUFFER_TYPE_IMMEDIATE,
 };
 
 struct CommandBuffer
@@ -35,7 +41,7 @@ struct CommandBuffer
 
 void initCommandBuffers(Renderer* pRenderer);
 
-CommandBuffer* getCmd(Renderer* pRenderer, bool immediate = false);
+CommandBuffer* getCmd(Renderer* pRenderer, CommandBufferType type = COMMAND_BUFFER_TYPE_FRAME);
 void beginCmd(CommandBuffer* pCmd);
 void endCmd(CommandBuffer* pCmd);
 void submitFrameCmd(Renderer* pRenderer, CommandBuffer* pCmd);

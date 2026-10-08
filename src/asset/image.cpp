@@ -40,14 +40,14 @@ void loadTexture(AssetManager* pAssetManager, ResourceManager* pResMan, String p
     initTexture(pResMan, desc, ppOut);
 
     Renderer* pRenderer = pResMan->pRenderer;
-    CommandBuffer* pCmd = getCmd(pRenderer, true);
+    CommandBuffer* pCmd = getCmd(pRenderer, COMMAND_BUFFER_TYPE_IMMEDIATE);
     beginCmd(pCmd);
 
     TextureBarrier barrier = { *ppOut, IMAGE_LAYOUT_UNDEFINED, IMAGE_LAYOUT_TRANSFER_DST };
     cmdTextureBarrier(pCmd, 1, &barrier);
 
     // Copy image data to texture
-    copyToBuffer(pRenderer, pRenderer->pStagingBuffer, 0, imageData, imageSize);
+    copyHostDataToBuffer(pRenderer, pRenderer->pStagingBuffer, 0, imageData, imageSize);
     cmdCopyToTexture(pCmd, *ppOut, pRenderer->pStagingBuffer);
     cmdGenerateMipmap(pCmd, *ppOut, SAMPLER_FILTER_LINEAR);
 

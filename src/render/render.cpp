@@ -1028,6 +1028,7 @@ void initRenderer(RendererDesc desc, Renderer* pRenderer)
         stagingDesc.mCount = 1;
         stagingDesc.mSize = stagingSize;
         stagingDesc.mStride = stagingSize;
+        stagingDesc.mFlags = BUFFER_FLAGS_HOST_MAPPED;
         addBuffer(pRenderer, stagingDesc, &pRenderer->pStagingBuffer);
     }
 }
@@ -1508,7 +1509,7 @@ void cmdSetScissor(CommandBuffer* pCmd, int32 x, int32 y, uint32 w, uint32 h)
 void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
 {
     ASSERT(pCmd && pBuffer);
-    ASSERT(pBuffer->mDesc.mType == BUFFER_TYPE_VERTEX);
+    ASSERT(pBuffer->mDesc.mType & BUFFER_TYPE_VERTEX);
 
     VkDeviceSize vkOffset = 0;
     vkCmdBindVertexBuffers(pCmd->mVkCmd, 
@@ -1519,7 +1520,7 @@ void cmdBindVertexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
 void cmdBindIndexBuffer(CommandBuffer* pCmd, Buffer* pBuffer)
 {
     ASSERT(pCmd && pBuffer);
-    ASSERT(pBuffer->mDesc.mType == BUFFER_TYPE_INDEX);
+    ASSERT(pBuffer->mDesc.mType & BUFFER_TYPE_INDEX);
 
     vkCmdBindIndexBuffer(pCmd->mVkCmd, 
             pBuffer->mVkBuffer, 

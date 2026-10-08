@@ -169,12 +169,12 @@ void setResources(ResourceManager* pResMan, Arena* pArena)
     }
 
     BufferDesc addrBufferDesc = {};
-    addrBufferDesc.mType = BUFFER_TYPE_UNIFORM;
+    addrBufferDesc.mType = BUFFER_TYPE_UNIFORM | BUFFER_TYPE_TRANSFER_DST;
     addrBufferDesc.mSize = ADDR_BUFFER_SIZE;
     addrBufferDesc.mStride = sizeof(uint32*);
-    addBuffer(pResMan->pRenderer, addrBufferDesc, &pResMan->pGlobalAddrBuffer);
-    copyToBuffer(pResMan->pRenderer, pResMan->pGlobalAddrBuffer, 0, 
-            bufferAddresses.mData, bufferCount * sizeof(uint32*));
+    addBuffer(pResMan->pRenderer, addrBufferDesc, &pResMan->pGlobalAddrBuffer, bufferAddresses.mData, bufferCount * sizeof(uint32*));
+    //-copyHostDataToBuffer(pResMan->pRenderer, pResMan->pGlobalAddrBuffer, 0, 
+    //-        bufferAddresses.mData, bufferCount * sizeof(uint32*));
 
     initResourceSet(pResMan->pRenderer, 
             (TextureResource*)pResMan->mTextures.mResources.mData, pResMan->mTextures.mResources.mCount, 
