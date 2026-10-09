@@ -45,3 +45,18 @@ v3f randomUniformV3F(float start, float end)
         randomUniformF32(start, end),
     };
 }
+
+float halton(int32 base, int32 i)
+{
+    float result = 0.f;
+
+    float f = 1.f;
+    while(i > 0)
+    {
+        f = f / (float)base;
+        result += f * (float)(i % base);
+        i = i / base;
+    }
+
+    return result;
+}

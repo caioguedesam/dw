@@ -8,3 +8,5 @@ float randomUniformF32(float start, float end);
 int32 randomUniformI32(int32 start, int32 end);
 v3f   randomUniformV3F();
 v3f   randomUniformV3F(float start, float end);
+
+float halton(int32 base, int32 i);

@@ -446,6 +446,8 @@ void cmdRenderTargetBarrier(CommandBuffer* pCmd, uint32 barrierCount, RenderTarg
 void cmdSwapChainBarrier(CommandBuffer* pCmd, SwapChain* pSwapChain, ImageLayout newLayout);
 void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdPrepareRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
+void cmdPrepareDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget);
 void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint64 dstOffset, uint64 size, uint32 data);
 void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint32 data);
 void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc);

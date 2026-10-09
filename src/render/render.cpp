@@ -1254,8 +1254,8 @@ void cmdClearRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
     };
     VkImageSubresourceRange range = {};
     range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    range.baseMipLevel = 0;     // TODO_DW: Does it make sense to generate mips for RTs?
-    range.levelCount = 1;
+    range.baseMipLevel = 0;
+    range.levelCount = pTarget->mDesc.mMipCount;
     range.baseArrayLayer = 0;
     range.layerCount = 1;
 
@@ -1276,9 +1276,9 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
     clear.depth = pTarget->mDesc.mClear.mDepth;
 
     VkImageSubresourceRange range = {};
-    range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    range.baseMipLevel = 0;     // TODO_DW: Does it make sense to generate mips for RTs?
-    range.levelCount = 1;
+    range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    range.baseMipLevel = 0;
+    range.levelCount = pTarget->mDesc.mMipCount;
     range.baseArrayLayer = 0;
     range.layerCount = 1;
 
@@ -1287,6 +1287,28 @@ void cmdClearDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
             (VkImageLayout)getImageLayout(pTarget), 
             &clear, 
             1, &range);
+}
+
+void cmdPrepareRenderTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
+{
+    RenderTargetBarrier targetBarrier =
+    {
+        pTarget, IMAGE_LAYOUT_UNDEFINED, IMAGE_LAYOUT_GENERAL
+    };
+    cmdRenderTargetBarrier(pCmd, 1, &targetBarrier);
+
+    cmdClearRenderTarget(pCmd, pTarget);
+}
+
+void cmdPrepareDepthTarget(CommandBuffer* pCmd, RenderTarget* pTarget)
+{
+    RenderTargetBarrier targetBarrier =
+    {
+        pTarget, IMAGE_LAYOUT_UNDEFINED, IMAGE_LAYOUT_GENERAL
+    };
+    cmdRenderTargetBarrier(pCmd, 1, &targetBarrier);
+
+    cmdClearDepthTarget(pCmd, pTarget);
 }
 
 void cmdFillBuffer(CommandBuffer* pCmd, Buffer* pDst, uint64 dstOffset, uint64 size, uint32 data)
