@@ -11,6 +11,7 @@ enum AppLoadRequest : uint32
     LOAD_REQUEST_SHADER             = BIT(0),
     LOAD_REQUEST_RENDER_TARGET      = BIT(1),
     LOAD_REQUEST_RESIZE             = BIT(2),
+    LOAD_REQUEST_SCENE              = BIT(3),
 };
 
 struct App
