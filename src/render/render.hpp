@@ -117,6 +117,13 @@ enum RenderTargetFlags : uint32
     RENDER_TARGET_FLAGS_SEPARATE_LEVELS = BIT(1),
 };
 
+enum RenderTargetResolveMode
+{
+    RESOLVE_AVERAGE = VK_RESOLVE_MODE_AVERAGE_BIT,
+    RESOLVE_MIN = VK_RESOLVE_MODE_MIN_BIT,
+    RESOLVE_MAX = VK_RESOLVE_MODE_MAX_BIT,
+};
+
 struct RenderTargetDesc
 {
     ImageFormat mFormat = FORMAT_UNDEFINED;
@@ -152,6 +159,7 @@ struct RenderTargetBinding
     StoreOp mStoreOp                = STORE_OP_STORE;
     uint32 mMipLevel                = 0;
     RenderTarget* pResolveTarget    = NULL;
+    RenderTargetResolveMode mResolveMode = RESOLVE_AVERAGE;
 };
 
 #define MAX_PIPELINE_RENDER_TARGETS 8

@@ -134,6 +134,7 @@ void poll(App* pApp)
         int32 ret = PeekMessage(&msg, pApp->mWindow.mWinHandle, 0, 0, PM_REMOVE);
         ASSERT(ret >= 0);
         if(!ret) break;
+        TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 }

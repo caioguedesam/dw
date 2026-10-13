@@ -1356,7 +1356,7 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
         {
             attachmentInfo[i].resolveImageView = binding.pResolveTarget->pTexture->mVkImageViews[binding.mMipLevel];
             attachmentInfo[i].resolveImageLayout = (VkImageLayout)binding.pResolveTarget->pTexture->mDesc.mLayouts[binding.mMipLevel];
-            attachmentInfo[i].resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;    // TODO(caio): Add different modes when needed.
+            attachmentInfo[i].resolveMode = (VkResolveModeFlagBits)binding.mResolveMode;
         }
         attachmentInfo[i].clearValue = vkClear;
     }
@@ -1401,7 +1401,7 @@ void cmdBindRenderTargets(CommandBuffer* pCmd, RenderTargetBindDesc desc)
         {
             depthAttachmentInfo.resolveImageView = desc.mDepthBinding.pResolveTarget->pTexture->mVkImageViews[desc.mDepthBinding.mMipLevel];
             depthAttachmentInfo.resolveImageLayout = (VkImageLayout)desc.mDepthBinding.pResolveTarget->pTexture->mDesc.mLayouts[desc.mDepthBinding.mMipLevel];
-            depthAttachmentInfo.resolveMode = VK_RESOLVE_MODE_MIN_BIT;    // TODO(caio): Add different modes when needed.
+            depthAttachmentInfo.resolveMode = (VkResolveModeFlagBits)desc.mDepthBinding.mResolveMode;
         }
         depthAttachmentInfo.clearValue = vkClear;
 
